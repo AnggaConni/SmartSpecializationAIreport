@@ -484,10 +484,17 @@
                                                 </div>
                                             ))}
                                         </div>
-                                        <div className="mt-2">
-                                            <label className="text-[9px] uppercase font-bold text-slate-400">Strategic Rationale</label>
-                                            <textarea className="w-full border border-slate-300 rounded p-1 text-sm bg-white focus:border-blue-500 outline-none" rows="2" value={s.rationale||""} onChange={e=>{const n=[...sectors]; n[idx].rationale=e.target.value; setSectors(n)}} placeholder="Why this sector?"></textarea>
-                                        </div>
+                                        {/* --- UPDATE: RATIONALE & TECH FOCUS --- */}
+                                            <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2">
+                                                <div>
+                                                    <label className="text-[9px] uppercase font-bold text-slate-400">Strategic Rationale</label>
+                                                    <textarea className="w-full border border-slate-300 rounded p-1 text-sm bg-white focus:border-blue-500 outline-none" rows="3" value={s.rationale||""} onChange={e=>{const n=[...sectors]; n[idx].rationale=e.target.value; setSectors(n)}} placeholder="Kenapa sektor ini dipilih?"></textarea>
+                                                </div>
+                                                <div>
+                                                    <label className="text-[9px] uppercase font-bold text-blue-500">Technology & Innovation Focus (IT/R&D)</label>
+                                                    <textarea className="w-full border border-blue-200 bg-blue-50 rounded p-1 text-sm focus:border-blue-500 outline-none" rows="3" value={s.tech||""} onChange={e=>{const n=[...sectors]; n[idx].tech=e.target.value; setSectors(n)}} placeholder="Contoh: IoT untuk monitoring panen, E-Commerce, Blockchain traceability..."></textarea>
+                                                </div>
+                                            </div>
                                     </div>
                                 ))}
                             </Accordion>
@@ -616,6 +623,11 @@
                                                     <th className="p-3 text-right">LQ Score</th>
                                                     <th className="p-3 text-right">Export</th>
                                                     <th className="p-3">Strategic Rationale</th>
+                                                    <th className="p-3">Sector Name</th>
+                                                    <th className="p-3 text-right">LQ Score</th>
+                                                    <th className="p-3 text-right">Export</th>
+                                                    <th className="p-3">Strategic Rationale</th>
+                                                    <th className="p-3 bg-blue-900 text-blue-100">Tech Focus</th>
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-slate-100 border">
@@ -625,6 +637,11 @@
                                                         <td className="p-3 text-right font-mono text-xs">{s.lq}</td>
                                                         <td className="p-3 text-right font-mono text-xs">{s.exportVal} M</td>
                                                         <td className="p-3 text-slate-600 text-xs italic">{s.rationale}</td>
+                                                        <td className="p-3 font-bold text-navy-800">{s.name}</td>
+                                                        <td className="p-3 text-right font-mono text-xs">{s.lq}</td>
+                                                        <td className="p-3 text-right font-mono text-xs">{s.exportVal} M</td>
+                                                        <td className="p-3 text-slate-600 text-xs italic">{s.rationale}</td>
+                                                        <td className="p-3 text-blue-800 text-xs font-medium bg-blue-50">{s.tech || "-"}</td>
                                                     </tr>
                                                 ))}
                                             </tbody>
