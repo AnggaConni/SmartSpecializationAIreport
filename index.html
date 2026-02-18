@@ -214,6 +214,18 @@
             const [regionName, setRegionName] = useState("");
             const [governance, setGovernance] = useState({ vision: "", timeline: "" });
             const [sectors, setSectors] = useState([]);
+            // STATE BARU: Identitas Pejabat & Logo
+            const [signer, setSigner] = useState({ name: "", title: "" });
+            const [logo, setLogo] = useState(null); // Untuk menyimpan URL gambar logo
+            
+            // Fungsi untuk handle upload logo
+            const handleLogoUpload = (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const imageUrl = URL.createObjectURL(file);
+                    setLogo(imageUrl);
+                }
+            };
             
             // Expanded Substance State
             const [swot, setSwot] = useState({ s: "", w: "", o: "", t: "" });
@@ -511,7 +523,17 @@
                                 <Input label="Region Name" fieldKey="regionName" val={regionName} setVal={setRegionName} placeholder="e.g. Kabupaten..." />
                                 <Input label="Vision Statement" fieldKey="vision" type="textarea" val={governance.vision} setVal={v => setGovernance({...governance, vision: v})} placeholder="What is the big goal?" />
                                 <Input label="Strategic Timeline" fieldKey="timeline" val={governance.timeline} setVal={v => setGovernance({...governance, timeline: v})} placeholder="e.g. 2024-2029" />
-                            </Accordion>
+                                <div className="mt-4 pt-4 border-t border-slate-200">
+                                    <label className="text-[9px] uppercase font-bold text-slate-400 mb-1 block">Logo Daerah/ Govt. Logo (PNG/JPG)</label>
+                                    <input type="file" accept="image/*" onChange={handleLogoUpload} className="w-full text-xs text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 mb-3"/>
+                                    
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <Input label="Nama Pejabat (Ttd)" val={signer.name} setVal={v => setSigner({...signer, name: v})} placeholder="Bpk. Nama Pejabat" />
+                                        <Input label="Jabatan" val={signer.title} setVal={v => setSigner({...signer, title: v})} placeholder="Bupati Flores Timur" />
+                                    </div>
+                                </div>
+
+                               </Accordion>
 
                             {/* 2. SECTORS */}
                             <Accordion title="Priority Sectors" icon="📊" isOpen={activeSection === 'sectors'} onClick={() => setActiveSection(activeSection === 'sectors' ? '' : 'sectors')}
@@ -636,11 +658,28 @@
                             
                             {/* COVER HEADER */}
                             <div className="mb-10 border-b-4 border-navy-900 pb-6 flex justify-between items-end">
-                                <div>
-                                    <span className="bg-terracotta-500 text-white px-2 py-1 text-[10px] font-bold uppercase tracking-widest rounded mb-2 inline-block">S3 Strategy Document</span>
-                                    <h1 className="font-serif text-5xl font-bold text-navy-900 mt-2 leading-tight">{regionName || "Untitled Region"}</h1>
-                                    <div className="mt-4 text-sm text-slate-500 font-medium">Smart Specialization Strategy Roadmap • {governance.timeline || "Draft Period"}</div>
+                                {/* Container Kiri: Gabungan Logo & Judul */}
+                                <div className="flex items-start gap-6">
+                                    
+                                    {/* 1. LOGO (Hanya muncul jika ada) */}
+                                    {logo && (
+                                        <img src={logo} alt="Logo Daerah" className="h-24 w-auto object-contain" />
+                                    )}
+
+                                    {/* 2. JUDUL TEKS */}
+                                    <div>
+                                        {/* Badge Tipe Dokumen */}
+                                        <span className="bg-terracotta-500 text-white px-2 py-1 text-[10px] font-bold uppercase tracking-widest rounded mb-2 inline-block">S3 Strategy Document</span>
+                                        
+                                        {/* Nama Daerah */}
+                                        <h1 className="font-serif text-5xl font-bold text-navy-900 mt-2 leading-tight">{regionName || "Untitled Region"}</h1>
+                                        
+                                        {/* Sub-judul */}
+                                        <div className="mt-4 text-sm text-slate-500 font-medium">Smart Specialization Strategy Roadmap • {governance.timeline || "Draft Period"}</div>
+                                    </div>
                                 </div>
+
+                                {/* Container Kanan: Tahun (Tetap) */}
                                 <div className="text-right hidden sm:block">
                                     <div className="text-4xl font-bold text-slate-200">2024</div>
                                 </div>
@@ -794,6 +833,16 @@
                                     </div>
                                 )}
                             </div>
+                            
+                            {(signer.name || signer.title) && (
+                                <div className="mt-20 flex justify-end page-break-avoid">
+                                    <div className="text-center w-64">
+                                        <div className="text-sm font-medium text-slate-500 mb-16">Disahkan di {regionName ? regionName.split(" ").pop() : "Tempat"}, {new Date().getFullYear()}</div>
+                                        <div className="font-bold text-navy-900 border-b border-navy-900 pb-1 mb-1">{signer.name || "Nama Pejabat"}</div>
+                                        <div className="text-xs uppercase tracking-widest text-slate-500">{signer.title || "Jabatan"}</div>
+                                    </div>
+                                </div>
+                            )}
 
                             <div className="mt-16 pt-6 border-t flex justify-between text-[10px] text-slate-400 uppercase tracking-widest">
                                 <span>S3 Builder Professional</span>
