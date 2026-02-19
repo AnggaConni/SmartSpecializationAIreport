@@ -303,6 +303,16 @@
             const [apiKey, setApiKey] = useState("");
             const [aiAnalysis, setAiAnalysis] = useState("");
             const [aiLoading, setAiLoading] = useState(false);
+
+            // --- STATE UNTUK UNIVERSAL CLOUD CONNECTOR ---
+            const [showDbModal, setShowDbModal] = useState(false);
+            const [isSending, setIsSending] = useState(false);
+            const [dbConfig, setDbConfig] = useState({
+                provider: 'google', // Pilihan: google, aws, firebase, custom
+                endpoint: '',
+                apiKey: '',
+                collection: 's3_data' // Khusus Firebase/MongoDB
+            });
             
             // Fungsi ini berguna untuk mengubah angka biasa (misal: 100) menjadi format uang ($100 M)
             const formatUSD = (val) => {
@@ -517,6 +527,60 @@
                 link.download = `S3_Strategy_${regionName.replace(/\s+/g,'_')}.json`;
                 link.click();
             };
+            // --- FUNGSI MODULAR FETCH ("BUNGLON") ---
+const sendToServer = async () => {
+    if (!dbConfig.endpoint) {
+        alert("⚠️ URL Endpoint tidak boleh kosong!");
+        return;
+    }
+
+    setIsSending(true);
+    // Payload murni dari state
+    const payload = { 
+        regionName, governance, finance, equity, environment, 
+        sectors, swot, stakeholders, actionPlan, kpis 
+    };
+
+    try {
+        let fetchUrl = dbConfig.endpoint;
+        let headers = { 'Content-Type': 'application/json' };
+
+        // Logika adaptasi untuk Google Apps Script, Firebase, dll
+        switch (dbConfig.provider) {
+            case 'google':
+                headers = { 'Content-Type': 'text/plain' }; 
+                break;
+            case 'aws':
+                if (dbConfig.apiKey) headers['x-api-key'] = dbConfig.apiKey;
+                break;
+            case 'firebase':
+                fetchUrl = fetchUrl.endsWith('/') ? fetchUrl : fetchUrl + '/';
+                fetchUrl = `${fetchUrl}${dbConfig.collection}.json`;
+                if (dbConfig.apiKey) fetchUrl += `?auth=${dbConfig.apiKey}`;
+                break;
+            case 'custom':
+                if (dbConfig.apiKey) headers['Authorization'] = `Bearer ${dbConfig.apiKey}`;
+                break;
+        }
+
+        const response = await fetch(fetchUrl, {
+            method: 'POST',
+            headers: headers,
+            body: JSON.stringify(payload)
+        });
+
+        if (response.ok) {
+            alert(`✅ Data berhasil dikirim ke ${dbConfig.provider.toUpperCase()}!`);
+            setShowDbModal(false);
+        } else {
+            throw new Error(`Server menolak respons (Status: ${response.status}).`);
+        }
+    } catch (error) {
+        alert("❌ Gagal mengirim data.\nPastikan URL dan API Key benar, serta server menerima POST.\n\nDetail: " + error.message);
+    } finally {
+        setIsSending(false);
+    }
+};
 
             const loadFromJSON = (e) => {
                 const reader = new FileReader();
@@ -721,6 +785,80 @@
                             </div>
                         </div>
                     )}
+                    {/* --- UI MODAL UNIVERSAL CLOUD CONNECTOR --- */}
+{showDbModal && (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+        <div className="bg-white p-6 rounded-xl shadow-2xl w-[450px] animate-fadeIn border border-slate-200">
+            <div className="flex justify-between items-center mb-4">
+                <h3 className="font-bold text-lg flex items-center gap-2">🚀 Universal API Connector</h3>
+                <button onClick={()=>setShowDbModal(false)} className="text-slate-400 hover:text-red-500 font-bold">✕</button>
+            </div>
+
+            <div className="bg-indigo-50 border border-indigo-200 text-indigo-800 text-[10px] p-3 rounded-lg mb-4 flex items-start gap-2">
+                <span className="text-lg leading-none">ℹ️</span>
+                <div>
+                    <strong>Standardized JSON Payload:</strong><br/>
+                    Data yang dikirim menggunakan struktur murni. Mendukung integrasi dengan <i>Data Warehouse</i> apapun.
+                </div>
+            </div>
+
+            <label className="text-[9px] font-bold text-slate-500 uppercase block mb-1">Target Platform</label>
+            <select 
+                className="w-full border p-2 rounded mb-3 text-sm bg-slate-50 focus:border-blue-500 outline-none font-bold text-navy-800"
+                value={dbConfig.provider} 
+                onChange={e=>setDbConfig({...dbConfig, provider: e.target.value})}
+            >
+                <option value="google">Google Workspace (Apps Script / Sheets)</option>
+                <option value="aws">AWS (API Gateway)</option>
+                <option value="firebase">Firebase (Realtime Database)</option>
+                <option value="custom">Custom Webhook / REST API</option>
+            </select>
+
+            <label className="text-[9px] font-bold text-slate-500 uppercase block mb-1">
+                {dbConfig.provider === 'firebase' ? 'Database URL' : 'API Endpoint URL'}
+            </label>
+            <input 
+                type="url" 
+                placeholder="https://..." 
+                className="w-full border p-2 rounded mb-3 text-xs bg-white focus:border-blue-500 outline-none" 
+                value={dbConfig.endpoint} 
+                onChange={e=>setDbConfig({...dbConfig, endpoint: e.target.value})} 
+            />
+
+            {dbConfig.provider === 'firebase' && (
+                <>
+                    <label className="text-[9px] font-bold text-slate-500 uppercase block mb-1">Collection / Node Name</label>
+                    <input type="text" className="w-full border p-2 rounded mb-3 text-xs bg-white focus:border-blue-500 outline-none" 
+                        value={dbConfig.collection} onChange={e=>setDbConfig({...dbConfig, collection: e.target.value})} />
+                </>
+            )}
+
+            {dbConfig.provider !== 'google' && (
+                <>
+                    <label className="text-[9px] font-bold text-slate-500 uppercase block mb-1">
+                        {dbConfig.provider === 'aws' ? 'x-api-key (Optional)' : 'Auth Token / Secret Key (Optional)'}
+                    </label>
+                    <input 
+                        type="password" 
+                        placeholder="Enter token..." 
+                        className="w-full border p-2 rounded mb-4 text-xs bg-white focus:border-blue-500 outline-none font-mono" 
+                        value={dbConfig.apiKey} 
+                        onChange={e=>setDbConfig({...dbConfig, apiKey: e.target.value})} 
+                    />
+                </>
+            )}
+
+            <div className="flex justify-end gap-2 mt-4 pt-4 border-t border-slate-100">
+                <button 
+                    onClick={sendToServer} 
+                    disabled={isSending}
+                    className={`w-full py-2.5 text-sm text-white rounded font-bold transition-colors shadow-sm flex items-center justify-center gap-2 ${isSending ? 'bg-slate-400' : 'bg-navy-900 hover:bg-navy-800'}`}>
+                    {isSending ? 'Transmitting Data...' : 'Transmit JSON Payload'}
+                </button>
+                        </div>
+                     </div>
+                </div>
+                )}
 
                     {/* LEFT SIDEBAR (INPUTS) */}
                     {/* UBAH BARIS INI (Tambahkan print:hidden) */}
@@ -728,6 +866,7 @@
                         <div className="p-5 bg-navy-900 text-white flex justify-between items-center shrink-0">
                             <div><h1 className="font-bold tracking-widest text-lg">S3 BUILDER</h1><div className="text-[10px] opacity-70">Professional Edition</div></div>
                             <div className="flex gap-1">
+                                <button onClick={()=>setShowDbModal(true)} title="Cloud Connector" className="p-2 text-white hover:bg-white/10 rounded">☁️</button>
                                 <button onClick={()=>setShowKeyModal(true)} title="AI Settings" className={`p-2 rounded transition-colors ${apiKey ? 'text-green-400' : 'text-slate-400 hover:text-white'}`}>⚙️</button>
                                 <button onClick={saveToJSON} title="Save" className="p-2 text-white hover:bg-white/10 rounded">💾</button>
                                 <label title="Load" className="p-2 text-white hover:bg-white/10 rounded cursor-pointer">📂<input type="file" onChange={loadFromJSON} className="hidden" accept=".json" /></label>
