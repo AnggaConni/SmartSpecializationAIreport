@@ -128,7 +128,7 @@
     <script type="text/babel">
         const { useState, useEffect, useRef, useMemo } = React;
 
-        // --- HELP REGISTRY (EXPANDED) ---
+        // --- HELP REGISTRY (EXPANDED wording) ---
         const HELP_REGISTRY = {
             // General
             regionName: "Identitas wilayah analisis (Provinsi/Kab/Kota).",
@@ -151,7 +151,28 @@
             // Action
             actionActivity: "Program konkret yang akan dijalankan.",
             actionOutput: "Target terukur dari kegiatan tersebut.",
-            actionBudget: "Estimasi biaya yang dibutuhkan."
+            actionBudget: "Estimasi biaya yang dibutuhkan.",
+            // Finance
+            publicInv: "Total investasi dari pemerintah/publik (USD Million).",
+            privateInv: "Total investasi dari Swasta/FDI (USD Million).",
+            fundingNeeded: "Total kebutuhan dana untuk mencapai Visi (USD Million).",
+            divIndex: "Indeks Diversifikasi (0-100). Semakin tinggi, sumber dana makin bervariasi (tidak hanya bergantung pada APBD).",
+            blendedReady: "Kesiapan institusi untuk skema Blended Finance/KPBU (0-100).",
+            // Equity
+            giniImpact: "Estimasi dampak strategi terhadap Rasio Gini. Angka minus (mis: -0.02) berarti baik (mengurangi ketimpangan).",
+            genderInc: "Indeks Inklusi Gender (0-100%). Rasio keterlibatan perempuan dalam ekosistem.",
+            smePart: "Persentase pelibatan UMKM lokal dalam rantai pasok industri prioritas.",
+            ruralShare: "Porsi investasi/program yang langsung berdampak pada masyarakat pedesaan.",
+            youthMult: "Efek pengganda (multiplier) untuk penyerapan tenaga kerja usia muda/milenial.",
+            // Environment
+            climateVuln: "Indeks Kerentanan Iklim (0-100). Makin tinggi angkanya, daerah tersebut makin rentan terhadap krisis cuaca/bencana alam.",
+            carbonInt: "Intensitas Karbon (Ton CO2 ekuivalen per USD 1 Juta output). Semakin kecil angkanya, industrinya semakin hijau.",
+            waterRisk: "Risiko ketergantungan sektor terhadap pasokan air bersih (0-100). Penting untuk daerah rawan kekeringan.",
+            bioRisk: "Risiko operasional/ekspansi industri merusak keanekaragaman hayati lokal (0-100).",
+            // Monitoring & KPI
+            kpiType: "Output = Hasil langsung kegiatan. Outcome = Manfaat yang dirasakan. Impact = Dampak luas/makro.",
+            baseline: "Kondisi awal sebelum strategi dijalankan (Tahun & Nilai).",
+            target: "Target akhir yang dijanjikan dalam dokumen strategi (Tahun & Nilai)."
         };
 
         const SECTOR_CONFIG = [
@@ -230,9 +251,34 @@
                     policyCoh: 0,    // Policy coherence score
                     pppReady: 0,     // Public-private partnership readiness
                     budgetAbs: 0     // Budget absorption capacity
-                
-                });
-            const [sectors, setSectors] = useState([]);
+            });
+            const [finance, setFinance] = useState({
+                publicInv: 0,       // Investasi Publik (USD M)
+                privateInv: 0,      // Investasi Swasta (USD M)
+                fundingNeeded: 0,   // Total Kebutuhan Dana (USD M)
+                divIndex: 0,        // Indeks Diversifikasi (0-100)
+                blendedReady: 0     // Kesiapan Blended Finance (0-100)
+            });
+            const [equity, setEquity] = useState({
+                giniImpact: 0,      // Proyeksi perubahan Gini (misal: -0.01 berarti mengurangi ketimpangan)
+                genderInc: 0,       // Indeks inklusi gender (0-100%)
+                smePart: 0,         // Tingkat partisipasi UMKM (0-100%)
+                ruralShare: 0,      // Porsi pelibatan masyarakat desa (0-100%)
+                youthMult: 0        // Pengganda serapan tenaga kerja pemuda (misal: 1.5x)
+            });
+            // Environment & Resilience State
+            const [environment, setEnvironment] = useState({
+                climateVuln: 0, // Indeks Kerentanan Iklim (0-100)
+                carbonInt: 0,   // Intensitas Karbon (Ton CO2 per $1M Output)
+                waterRisk: 0,   // Risiko ketergantungan air (0-100)
+                bioRisk: 0      // Risiko terhadap keanekaragaman hayati (0-100)
+            });
+            // Monitoring & KPI State
+            const [kpis, setKpis] = useState([
+            ]);
+            // Sector State
+            const [sectors, setSectors] = useState([
+               ]);
             // STATE BARU: Identitas Pejabat & Logo
             const [signer, setSigner] = useState({ name: "", title: "" });
             const [logo, setLogo] = useState(null); // Untuk menyimpan URL gambar logo
@@ -345,6 +391,33 @@
                     pppReady: 45,    // Kesiapan investasi swasta masih rendah 45%
                     budgetAbs: 88    // Serapan anggaran bagus 88%
                 });
+                setEnvironment({
+                 climateVuln: 75, // Tinggi: Pulau kecil rentan perubahan iklim & cuaca ekstrem
+                 carbonInt: 120,  // Cukup rendah: Didominasi agro-industri, bukan alat berat
+                 waterRisk: 80,   // Tinggi: NTT daerah kering, air bersih sangat vital
+                 bioRisk: 30      // Rendah: Praktik tenun & kopi relatif ramah alam
+                 });
+                setFinance({
+                    fundingNeeded: 150,  // Butuh $150 Juta
+                    publicInv: 30,       // APBD/Pemerintah cuma sanggup $30 Juta
+                    privateInv: 45,      // Komitmen Swasta/CSR $45 Juta
+                    divIndex: 65,        // Indeks diversifikasi cukup baik (65/100)
+                    blendedReady: 55     // Kesiapan Blended Finance level menengah (55/100)
+                });
+                setEquity({
+                giniImpact: -0.015, // Strategi ini diproyeksikan menurunkan Gini 0.015 poin
+                genderInc: 45,      // 45% pelibatan perempuan (pengrajin tenun dll)
+                smePart: 80,        // 80% industri digerakkan UMKM
+                ruralShare: 65,     // 65% dana mengalir langsung ke desa
+                youthMult: 2.1      // 1 pekerjaan langsung ciptakan 2.1 pekerjaan untuk pemuda
+            });
+            // Dummy Data untuk Monitoring & KPI
+                setKpis([
+                 { id: 301, name: "Pembangunan Rumah Jemur Kopi", type: "Output", baselineYear: "2023", baselineVal: "2", targetYear: "2029", targetVal: "15", unit: "Unit" },
+                 { id: 302, name: "Nilai Ekspor Kopi Premium", type: "Outcome", baselineYear: "2023", baselineVal: "15", targetYear: "2029", targetVal: "45", unit: "USD Juta" },
+                 { id: 303, name: "Sertifikasi Indikator Geografis UMKM", type: "Output", baselineYear: "2023", baselineVal: "10", targetYear: "2029", targetVal: "150", unit: "UMKM" },
+                 { id: 304, name: "Tingkat Pengangguran Terbuka (TPT)", type: "Impact", baselineYear: "2023", baselineVal: "6.5", targetYear: "2029", targetVal: "4.2", unit: "%" }
+             ]);
                 
                 // 2. Sectors (SDA & Culture)
                 setSectors([
@@ -437,7 +510,7 @@
             };
 
             const saveToJSON = () => {
-                const data = { regionName, governance, sectors, swot, stakeholders, actionPlan, customModules, customData };
+                const data = { regionName, governance, finance, equity, environment, sectors, swot, stakeholders, actionPlan, kpis, customModules, customData };
                 const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
                 const link = document.createElement('a');
                 link.href = URL.createObjectURL(blob);
@@ -452,10 +525,13 @@
                         const data = JSON.parse(ev.target.result);
                         setRegionName(data.regionName || "");
                         setGovernance(data.governance || { vision: "", timeline: "" });
+                        setFinance(data.finance || { publicInv: 0, privateInv: 0, fundingNeeded: 0, divIndex: 0, blendedReady: 0 });
+                        setEnvironment(data.environment || { climateVuln: 0, carbonInt: 0, waterRisk: 0, bioRisk: 0 });
                         setSectors(data.sectors || []);
                         setSwot(data.swot || { s: "", w: "", o: "", t: "" });
                         setStakeholders(data.stakeholders || []);
                         setActionPlan(data.actionPlan || []);
+                        setKpis(data.kpis || []);
                         setCustomModules(data.customModules || []);
                         setCustomData(data.customData || {});
                         alert("Data Loaded Successfully!");
@@ -490,23 +566,60 @@
                         options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
                     });
                 }
+                // --- UPDATE: RADAR CHART S3 IDEAL ---
                 if(radarRef.current) {
                     if(chartInstances.current.radar) chartInstances.current.radar.destroy();
+                    
+                    // Kita tarik data Governance (Inst. Support) dan Environment (Risk Inverse)
+                    // Jika data belum diisi, kita beri nilai default tengah (5 dari skala 10)
+                    const govScore = governance ? ((governance.coordIndex || 0) + (governance.policyCoh || 0)) / 20 : 5;
+                    
+                    // Risk Inverse = Semakin kecil risiko lingkungan, skor radarnya makin besar/luas (mendekati 10)
+                    const riskInverse = environment ? 10 - (((environment.climateVuln || 0) + (environment.waterRisk || 0)) / 20) : 5;
+
                     chartInstances.current.radar = new Chart(radarRef.current, {
                         type: 'radar',
                         data: {
-                            labels: ['Jobs', 'Export', 'LQ Potential', 'Growth'],
-                            datasets: processedData.data.slice(0,3).map((s,i) => ({
-                                label: s.name,
-                                data: [s.workers > 1000 ? 5:3, s.exportVal > 100 ? 5:2, s.lq > 1 ? 5:2, 4],
-                                backgroundColor: i===0 ? 'rgba(30,58,95,0.2)' : 'rgba(224,122,95,0.2)',
-                                borderColor: i===0 ? '#1e3a5f' : '#e07a5f'
-                            }))
+                            // Ini adalah 6 sumbu ideal arahan dosen kebijakan publik!
+                            labels: ['Economic Strength', 'Innovation Cap.', 'Market Opp.', 'Inst. Support', 'Risk Level (Inv)', 'Upgrade Feas.'],
+                            datasets: processedData.data.slice(0,3).map((s,i) => {
+                                
+                                // Kalkulasi cerdas dari data input sektor (Skala 0 - 10)
+                                const econStr = Math.min(10, (s.lq || 1) * 2 + (s.exportVal > 20 ? 3 : 1));
+                                const innoCap = calculateInnoScore(s).score / 10; // Konversi dari 100 ke 10
+                                const marketOpp = Math.min(10, (s.gvcPos || 5) + (s.exportVal > 10 ? 2 : 0));
+                                const upgradeFeas = Math.min(10, ((s.trl || 5) + (s.integration || 5)) / 2 * 1.2);
+
+                                // Palet warna elegan untuk 3 sektor teratas
+                                const colors = [
+                                    { bg: 'rgba(30,58,95,0.2)', border: '#1e3a5f' },   // Navy
+                                    { bg: 'rgba(224,122,95,0.2)', border: '#e07a5f' }, // Terracotta
+                                    { bg: 'rgba(30,142,62,0.2)', border: '#1e8e3e' }    // Emerald (Hijau)
+                                ];
+
+                                return {
+                                    label: s.name,
+                                    data: [econStr, innoCap, marketOpp, govScore, riskInverse, upgradeFeas],
+                                    backgroundColor: colors[i % 3].bg,
+                                    borderColor: colors[i % 3].border,
+                                    borderWidth: 2,
+                                    pointBackgroundColor: colors[i % 3].border
+                                };
+                            })
                         },
-                        options: { responsive: true, maintainAspectRatio: false, scales: { r: { min: 0, max: 6 } } }
+                        options: { 
+                            responsive: true, 
+                            maintainAspectRatio: false, 
+                            scales: { 
+                                r: { min: 0, max: 10, ticks: { stepSize: 2 } } 
+                            },
+                            plugins: {
+                                legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 9 } } }
+                            }
+                        }
                     });
                 }
-            }, [processedData]);
+            }, [processedData, governance, environment]);
 
             const handleAI = async () => {
                 if(!apiKey) return setShowKeyModal(true);
@@ -719,7 +832,7 @@
                                 ))}
                             </Accordion>
 
-                            {/* 5. ACTION PLAN (NEW) */}
+                            {/* 5. ACTION PLAN */}
                             <Accordion title="Action Plan" icon="🚀" isOpen={activeSection === 'action'} onClick={() => setActiveSection(activeSection === 'action' ? '' : 'action')}
                                 extraAction={<button onClick={(e) => { e.stopPropagation(); setActionPlan([...actionPlan, {id: Date.now(), activity: "", year: "2024"}]); setActiveSection('action'); }} className="text-[10px] bg-purple-100 text-purple-700 px-2 py-1 rounded font-bold border border-purple-200 hover:bg-purple-200">+ Add</button>}>
                                 {actionPlan.map((act, idx) => (
@@ -745,6 +858,96 @@
                                                         <label className="text-[9px] font-bold text-slate-400 uppercase">Target/Output</label>
                                                         <input className="w-full border p-1 rounded text-xs" value={act.output||""} onChange={e=>{const n=[...actionPlan]; n[idx].output=e.target.value; setActionPlan(n)}} />
                                                     </div>
+                                    </div>
+                                ))}
+                            </Accordion>
+
+                            {/* 6. FINANCIAL LEVERAGE (NEW) */}
+                            <Accordion title="Financial Leverage" icon="💰" isOpen={activeSection === 'finance'} onClick={() => setActiveSection(activeSection === 'finance' ? '' : 'finance')}>
+                                <div className="p-2 bg-blue-50 rounded mb-4 text-[10px] text-blue-800 border border-blue-200">
+                                    <strong>Tip:</strong> Isi dalam juta USD (USD Million). Rasio dan Gap Investasi akan dihitung otomatis.
+                                </div>
+                                <Input label="Total Funding Needed (USD M)" fieldKey="fundingNeeded" val={finance.fundingNeeded} setVal={v => setFinance({...finance, fundingNeeded: parseFloat(v) || 0})} type="number" />
+                                <div className="grid grid-cols-2 gap-2">
+                                    <Input label="Public Invest. (USD M)" fieldKey="publicInv" val={finance.publicInv} setVal={v => setFinance({...finance, publicInv: parseFloat(v) || 0})} type="number" />
+                                    <Input label="Private Invest. (USD M)" fieldKey="privateInv" val={finance.privateInv} setVal={v => setFinance({...finance, privateInv: parseFloat(v) || 0})} type="number" />
+                                </div>
+                                <div className="border-t border-slate-200 my-2 pt-2 grid grid-cols-2 gap-2">
+                                    <Input label="Diversification (0-100)" fieldKey="divIndex" val={finance.divIndex} setVal={v => setFinance({...finance, divIndex: parseFloat(v) || 0})} type="number" />
+                                    <Input label="Blended Ready (0-100)" fieldKey="blendedReady" val={finance.blendedReady} setVal={v => setFinance({...finance, blendedReady: parseFloat(v) || 0})} type="number" />
+                                </div>
+                            </Accordion>
+                            {/* 7. SOCIAL & EQUITY LENS (NEW) */}
+                            <Accordion title="Social & Equity Lens" icon="⚖️" isOpen={activeSection === 'equity'} onClick={() => setActiveSection(activeSection === 'equity' ? '' : 'equity')}>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <Input label="Gini Impact (+/-)" fieldKey="giniImpact" val={equity.giniImpact} setVal={v => setEquity({...equity, giniImpact: parseFloat(v) || 0})} type="number" />
+                                    <Input label="Youth Job Mult. (x)" fieldKey="youthMult" val={equity.youthMult} setVal={v => setEquity({...equity, youthMult: parseFloat(v) || 0})} type="number" />
+                                    <Input label="SME Part. (%)" fieldKey="smePart" val={equity.smePart} setVal={v => setEquity({...equity, smePart: parseFloat(v) || 0})} type="number" />
+                                    <Input label="Rural Share (%)" fieldKey="ruralShare" val={equity.ruralShare} setVal={v => setEquity({...equity, ruralShare: parseFloat(v) || 0})} type="number" />
+                                </div>
+                                <div className="border-t border-slate-200 mt-2 pt-2">
+                                    <Input label="Gender Inclusion Index (0-100)" fieldKey="genderInc" val={equity.genderInc} setVal={v => setEquity({...equity, genderInc: parseFloat(v) || 0})} type="number" />
+                                </div>
+                            </Accordion>
+                            {/* 8. ENVIRONMENT & RESILIENCE (NEW) */}
+                            <Accordion title="Environment & Resilience" icon="🌱" isOpen={activeSection === 'environment'} onClick={() => setActiveSection(activeSection === 'environment' ? '' : 'environment')}>
+                                <div className="p-2 bg-emerald-50 rounded mb-4 text-[10px] text-emerald-800 border border-emerald-200">
+                                    <strong>Tip ESG:</strong> Indikator ini wajib untuk mengakses pendanaan *Green Finance* atau *Climate Fund* global.
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <Input label="Climate Vuln. (0-100)" fieldKey="climateVuln" val={environment.climateVuln} setVal={v => setEnvironment({...environment, climateVuln: parseFloat(v) || 0})} type="number" />
+                                    <Input label="Carbon Int. (Ton/$1M)" fieldKey="carbonInt" val={environment.carbonInt} setVal={v => setEnvironment({...environment, carbonInt: parseFloat(v) || 0})} type="number" />
+                                    <Input label="Water Risk (0-100)" fieldKey="waterRisk" val={environment.waterRisk} setVal={v => setEnvironment({...environment, waterRisk: parseFloat(v) || 0})} type="number" />
+                                    <Input label="Bio Impact Risk (0-100)" fieldKey="bioRisk" val={environment.bioRisk} setVal={v => setEnvironment({...environment, bioRisk: parseFloat(v) || 0})} type="number" />
+                                </div>
+                            </Accordion>
+                            {/* 9. MONITORING & KPI FRAMEWORK (NEW) */}
+                            <Accordion title="Monitoring & KPI" icon="📈" isOpen={activeSection === 'kpi'} onClick={() => setActiveSection(activeSection === 'kpi' ? '' : 'kpi')}
+                                extraAction={<button onClick={(e) => { e.stopPropagation(); setKpis([...kpis, {id: Date.now(), name: "", type: "Output", baselineYear: "2024", baselineVal: "", targetYear: "2029", targetVal: "", unit: "" }]); setActiveSection('kpi'); }} className="text-[10px] bg-indigo-100 text-indigo-700 px-2 py-1 rounded font-bold border border-indigo-200 hover:bg-indigo-200">+ Add KPI</button>}>
+                                
+                                <div className="p-2 bg-indigo-50 rounded mb-4 text-[10px] text-indigo-800 border border-indigo-200">
+                                    <strong>Logical Framework:</strong> Ubah narasi menjadi target terukur! Tentukan Baseline vs Target.
+                                </div>
+
+                                {kpis.length === 0 && <p className="text-xs text-slate-400 italic text-center py-4">Belum ada KPI. Tambahkan indikator pencapaian.</p>}
+                                
+                                {kpis.map((kpi, idx) => (
+                                    <div key={kpi.id} className="mb-3 p-3 border border-slate-200 rounded bg-slate-50 relative">
+                                        <button onClick={()=>setKpis(kpis.filter(x=>x.id!==kpi.id))} className="absolute top-1 right-2 text-slate-300 hover:text-red-500 font-bold">×</button>
+                                        
+                                        <Input label="Indicator Name" val={kpi.name} setVal={v=>{const n=[...kpis]; n[idx].name=v; setKpis(n)}} placeholder="e.g. Volume Ekspor Kopi" />
+                                        
+                                        <div className="flex gap-2 mb-2">
+                                            <div className="w-1/2">
+                                                <label className="text-[9px] font-bold text-slate-400 uppercase">Type</label>
+                                                <select className="w-full border p-1 rounded text-xs bg-white focus:border-blue-500 outline-none" value={kpi.type} onChange={e=>{const n=[...kpis]; n[idx].type=e.target.value; setKpis(n)}}>
+                                                    <option value="Output">Output (Direct Product)</option>
+                                                    <option value="Outcome">Outcome (Short-term Effect)</option>
+                                                    <option value="Impact">Impact (Long-term Change)</option>
+                                                </select>
+                                            </div>
+                                            <div className="w-1/2">
+                                                <label className="text-[9px] font-bold text-slate-400 uppercase">Unit/Satuan</label>
+                                                <input className="w-full border p-1 rounded text-xs focus:border-blue-500 outline-none" value={kpi.unit||""} onChange={e=>{const n=[...kpis]; n[idx].unit=e.target.value; setKpis(n)}} placeholder="e.g. Ton, %, USD" />
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-slate-200">
+                                            <div>
+                                                <label className="text-[9px] font-bold text-slate-400 uppercase">Baseline</label>
+                                                <div className="flex gap-1">
+                                                    <input className="w-1/2 border p-1 rounded text-xs focus:border-blue-500 outline-none" value={kpi.baselineYear||""} onChange={e=>{const n=[...kpis]; n[idx].baselineYear=e.target.value; setKpis(n)}} placeholder="Year" />
+                                                    <input type="number" className="w-1/2 border p-1 rounded text-xs focus:border-blue-500 outline-none" value={kpi.baselineVal||""} onChange={e=>{const n=[...kpis]; n[idx].baselineVal=e.target.value; setKpis(n)}} placeholder="Value" />
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label className="text-[9px] font-bold text-terracotta-500 uppercase">Target</label>
+                                                <div className="flex gap-1">
+                                                    <input className="w-1/2 border p-1 rounded text-xs focus:border-blue-500 outline-none border-terracotta-200" value={kpi.targetYear||""} onChange={e=>{const n=[...kpis]; n[idx].targetYear=e.target.value; setKpis(n)}} placeholder="Year" />
+                                                    <input type="number" className="w-1/2 border p-1 rounded text-xs focus:border-blue-500 outline-none border-terracotta-200" value={kpi.targetVal||""} onChange={e=>{const n=[...kpis]; n[idx].targetVal=e.target.value; setKpis(n)}} placeholder="Value" />
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 ))}
                             </Accordion>
@@ -835,6 +1038,7 @@
                                 <div className={`text-2xl font-bold mb-1 ${item.text}`}>{item.val}%</div>
                                 <div className="text-[9px] text-slate-500 uppercase tracking-wider font-bold mb-3 h-6 flex items-center justify-center">
                                         {item.label}</div>
+
                         {/* Progress Bar Background */}
                                 <div className="w-full bg-slate-100 rounded-full h-1.5">
                         {/* Progress Bar Fill */}
@@ -845,7 +1049,135 @@
                     </div>
                  </div>
                         )}
-                            
+                            {/* FINANCIAL LEVERAGE DASHBOARD */}
+                            {(finance.fundingNeeded > 0) && (
+                                <div className="mb-12 px-10 page-break-avoid animate-fadeIn">
+                                    <h3 className="section-title text-sm font-bold text-navy-900 mb-4 flex items-center gap-2 uppercase tracking-widest border-b pb-2">
+                                    <span className="text-xl">💰</span> Financial Leverage & Investment</h3>
+                                    
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                                        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center">
+                                            <div className="text-[9px] text-slate-500 uppercase tracking-wider font-bold mb-1">Funding Needed</div>
+                                            <div className="text-xl font-bold text-navy-800">{formatUSD(finance.fundingNeeded)}</div>
+                                        </div>
+                                        <div className="bg-red-50 p-4 rounded-xl border border-red-100 shadow-sm text-center">
+                                            <div className="text-[9px] text-red-500 uppercase tracking-wider font-bold mb-1">Investment Gap</div>
+                                            <div className="text-xl font-bold text-red-700">
+                                                {formatUSD(Math.max(0, finance.fundingNeeded - (finance.publicInv + finance.privateInv)))}
+                                            </div>
+                                        </div>
+                                        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center">
+                                            <div className="text-[9px] text-slate-500 uppercase tracking-wider font-bold mb-1">Pub vs Priv Ratio</div>
+                                            <div className="text-xl font-bold text-indigo-700">
+                                                {finance.publicInv === 0 && finance.privateInv === 0 ? "0:0" : 
+                                                 finance.privateInv === 0 ? "100:0" : 
+                                                 `1 : ${(finance.privateInv / (finance.publicInv || 1)).toFixed(1)}`}
+                                            </div>
+                                        </div>
+                                        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center">
+                                            <div className="text-[9px] text-slate-500 uppercase tracking-wider font-bold mb-1">Blended Readiness</div>
+                                            <div className="text-xl font-bold text-emerald-600">{finance.blendedReady}%</div>
+                                        </div>
+                                    </div>
+
+                                    {/* Visualisasi Bar Persentase */}
+                                    <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm mt-2">
+                                        <div className="flex justify-between text-[10px] mb-2 font-bold uppercase tracking-wider">
+                                            <span className="text-blue-600">Public: {formatUSD(finance.publicInv)}</span>
+                                            <span className="text-emerald-600">Private: {formatUSD(finance.privateInv)}</span>
+                                            <span className="text-red-500">Gap: {formatUSD(Math.max(0, finance.fundingNeeded - (finance.publicInv + finance.privateInv)))}</span>
+                                        </div>
+                                        <div className="w-full flex h-4 rounded-full overflow-hidden bg-red-100 shadow-inner">
+                                            <div className="bg-blue-500 transition-all duration-1000" style={{width: `${(finance.publicInv / finance.fundingNeeded) * 100}%`}}></div>
+                                            <div className="bg-emerald-500 transition-all duration-1000" style={{width: `${(finance.privateInv / finance.fundingNeeded) * 100}%`}}></div>
+                                        </div>
+                                        <div className="mt-3 text-[10px] text-slate-500 text-center uppercase tracking-wider">
+                                            Diversification Index: <span className="font-bold text-navy-800">{finance.divIndex}/100</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                            {/* SOCIAL & EQUITY DASHBOARD */}
+                            {(equity.smePart > 0 || equity.ruralShare > 0) && (
+                                <div className="mb-12 px-10 page-break-avoid animate-fadeIn">
+                                    <h3 className="section-title text-sm font-bold text-navy-900 mb-4 flex items-center gap-2 uppercase tracking-widest border-b pb-2">
+                                    <span className="text-xl">⚖️</span> Social & Equity Impact</h3>
+                                    
+                                    <div className="grid grid-cols-5 gap-3">
+                                        {/* Gini Impact Card - Logika Warna: Minus itu bagus (Hijau), Plus itu buruk (Merah) */}
+                                        <div className={`p-3 rounded-lg border shadow-sm text-center col-span-1 ${equity.giniImpact < 0 ? 'bg-emerald-50 border-emerald-200' : equity.giniImpact > 0 ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-200'}`}>
+                                            <div className="text-[8px] uppercase font-bold text-slate-500 mb-1">Gini Ratio Impact</div>
+                                            <div className={`text-xl font-bold ${equity.giniImpact < 0 ? 'text-emerald-700' : equity.giniImpact > 0 ? 'text-red-700' : 'text-slate-700'}`}>
+                                                {equity.giniImpact > 0 ? '+' : ''}{equity.giniImpact}
+                                            </div>
+                                            <div className="text-[8px] text-slate-400 mt-1">{equity.giniImpact < 0 ? 'Inequality Reduced' : 'Needs Attention'}</div>
+                                        </div>
+
+                                        <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm text-center col-span-1">
+                                            <div className="text-[8px] uppercase font-bold text-slate-500 mb-1">SME Integration</div>
+                                            <div className="text-xl font-bold text-terracotta-600">{equity.smePart}%</div>
+                                        </div>
+
+                                        <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm text-center col-span-1">
+                                            <div className="text-[8px] uppercase font-bold text-slate-500 mb-1">Rural Share</div>
+                                            <div className="text-xl font-bold text-amber-600">{equity.ruralShare}%</div>
+                                        </div>
+
+                                        <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm text-center col-span-1">
+                                            <div className="text-[8px] uppercase font-bold text-slate-500 mb-1">Youth Multiplier</div>
+                                            <div className="text-xl font-bold text-blue-600">{equity.youthMult}x</div>
+                                        </div>
+
+                                        <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm text-center col-span-1">
+                                            <div className="text-[8px] uppercase font-bold text-slate-500 mb-1">Gender Inclusion</div>
+                                            <div className="text-xl font-bold text-purple-600">{equity.genderInc}%</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                            {/* ENVIRONMENT & RESILIENCE DASHBOARD */}
+                            {(environment.climateVuln > 0 || environment.carbonInt > 0) && (
+                                <div className="mb-12 px-10 page-break-avoid animate-fadeIn">
+                                    <h3 className="section-title text-sm font-bold text-navy-900 mb-4 flex items-center gap-2 uppercase tracking-widest border-b pb-2">
+                                    <span className="text-xl">🌱</span> Environment & Climate Resilience</h3>
+                                    
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                        {/* Climate Vulnerability */}
+                                        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center relative overflow-hidden">
+                                            <div className="text-[9px] uppercase font-bold text-slate-500 mb-1">Climate Vuln. Index</div>
+                                            <div className={`text-2xl font-bold ${environment.climateVuln > 70 ? 'text-red-600' : environment.climateVuln > 40 ? 'text-orange-500' : 'text-emerald-600'}`}>{environment.climateVuln}</div>
+                                            <div className="w-full bg-slate-100 rounded-full h-1.5 mt-2">
+                                                <div className={`${environment.climateVuln > 70 ? 'bg-red-500' : environment.climateVuln > 40 ? 'bg-orange-400' : 'bg-emerald-500'} h-1.5 rounded-full transition-all duration-1000`} style={{width: `${environment.climateVuln}%`}}></div>
+                                            </div>
+                                        </div>
+
+                                        {/* Carbon Intensity */}
+                                        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center relative overflow-hidden">
+                                            <div className="text-[9px] uppercase font-bold text-slate-500 mb-1">Carbon Intensity</div>
+                                            <div className="text-2xl font-bold text-slate-700">{environment.carbonInt} <span className="text-xs font-normal text-slate-400">tCO₂</span></div>
+                                            <div className="text-[8px] mt-1 text-slate-400 uppercase tracking-wider">Per USD 1M Output</div>
+                                        </div>
+
+                                        {/* Water Dependency Risk */}
+                                        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center relative overflow-hidden">
+                                            <div className="text-[9px] uppercase font-bold text-slate-500 mb-1">Water Risk</div>
+                                            <div className={`text-2xl font-bold ${environment.waterRisk > 70 ? 'text-red-600' : environment.waterRisk > 40 ? 'text-orange-500' : 'text-blue-500'}`}>{environment.waterRisk}</div>
+                                            <div className="w-full bg-slate-100 rounded-full h-1.5 mt-2">
+                                                <div className={`${environment.waterRisk > 70 ? 'bg-red-500' : environment.waterRisk > 40 ? 'bg-orange-400' : 'bg-blue-500'} h-1.5 rounded-full transition-all duration-1000`} style={{width: `${environment.waterRisk}%`}}></div>
+                                            </div>
+                                        </div>
+
+                                        {/* Biodiversity Risk */}
+                                        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center relative overflow-hidden">
+                                            <div className="text-[9px] uppercase font-bold text-slate-500 mb-1">Biodiversity Risk</div>
+                                            <div className={`text-2xl font-bold ${environment.bioRisk > 70 ? 'text-red-600' : environment.bioRisk > 40 ? 'text-orange-500' : 'text-emerald-600'}`}>{environment.bioRisk}</div>
+                                            <div className="w-full bg-slate-100 rounded-full h-1.5 mt-2">
+                                                <div className={`${environment.bioRisk > 70 ? 'bg-red-500' : environment.bioRisk > 40 ? 'bg-orange-400' : 'bg-emerald-500'} h-1.5 rounded-full transition-all duration-1000`} style={{width: `${environment.bioRisk}%`}}></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                             {/* SECTORS & CHARTS */}
                             {sectors.length > 0 && (
                                 <div className="mb-12 page-break">
@@ -981,6 +1313,63 @@
                                     </div>
                                 )}
                             </div>
+                            {/* MONITORING & KPI DASHBOARD */}
+                            {kpis.length > 0 && (
+                                <div className="mb-12 page-break">
+                                    <h3 className="section-title text-xl font-bold text-navy-900 mb-6 flex items-center gap-3"><span className="w-8 h-1 bg-indigo-500 block"></span>Monitoring & KPI Framework</h3>
+                                    
+                                    <div className="overflow-x-auto page-break-avoid">
+                                        <table className="w-full text-sm text-left border rounded-lg overflow-hidden shadow-sm">
+                                            <thead className="bg-navy-900 text-white uppercase text-xs">
+                                                <tr>
+                                                    <th className="p-3">Performance Indicator</th>
+                                                    <th className="p-3 w-1/6">Level</th>
+                                                    <th className="p-3 text-center w-1/5 bg-slate-800">Baseline</th>
+                                                    <th className="p-3 text-center w-1/5 bg-terracotta-600">Target</th>
+                                                    <th className="p-3 text-right">Growth / Change</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-100 border">
+                                                {kpis.map((kpi) => {
+                                                    const base = parseFloat(kpi.baselineVal) || 0;
+                                                    const tgt = parseFloat(kpi.targetVal) || 0;
+                                                    let growth = "-";
+                                                    
+                                                    // Hitung Persentase Pertumbuhan otomatis
+                                                    if (base > 0 && tgt > 0) {
+                                                        const pct = ((tgt - base) / base * 100).toFixed(1);
+                                                        growth = pct > 0 ? `+${pct}%` : `${pct}%`;
+                                                    } else if (base === 0 && tgt > 0) {
+                                                        growth = "New Target";
+                                                    }
+
+                                                    return (
+                                                        <tr key={kpi.id} className="hover:bg-slate-50 bg-white">
+                                                            <td className="p-3 font-bold text-navy-800">{kpi.name}</td>
+                                                            <td className="p-3">
+                                                                <span className={`text-[9px] font-bold px-2 py-1 rounded uppercase tracking-wider
+                                                                    ${kpi.type === 'Impact' ? 'bg-purple-100 text-purple-700 border border-purple-200' : 
+                                                                    kpi.type === 'Outcome' ? 'bg-blue-100 text-blue-700 border border-blue-200' : 'bg-slate-100 text-slate-700 border border-slate-200'}`}>
+                                                                    {kpi.type}
+                                                                </span>
+                                                            </td>
+                                                            <td className="p-3 text-center">
+                                                                <div className="text-lg font-bold">{kpi.baselineVal} <span className="text-[10px] font-normal text-slate-500">{kpi.unit}</span></div>
+                                                                <div className="text-[9px] text-slate-400">Tahun: {kpi.baselineYear}</div>
+                                                            </td>
+                                                            <td className="p-3 text-center bg-terracotta-50/30">
+                                                                <div className="text-lg font-bold text-terracotta-700">{kpi.targetVal} <span className="text-[10px] font-normal text-terracotta-500/70">{kpi.unit}</span></div>
+                                                                <div className="text-[9px] text-terracotta-400">Tahun: {kpi.targetYear}</div>
+                                                            </td>
+                                                            <td className="p-3 text-right font-mono font-bold text-emerald-600">{growth}</td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            )}
                             
                             {(signer.name || signer.title) && (
                                 <div className="mt-20 flex justify-end page-break-avoid">
