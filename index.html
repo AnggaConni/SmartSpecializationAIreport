@@ -664,63 +664,59 @@
             }; // <--- PENUTUP FUNGSI loadSampleData YANG BENAR ADA DI SINI
 
             const saveToJSON = () => {
-    // 1. Kumpulkan SEMUA state yang ada (KECUALI apiKey)
-                const data = { 
-                    regionName, governance, finance, equity, environment, 
-                    sectors, swot, stakeholders, actionPlan, kpis, 
-                    signer, dbConfig, 
-                    sim, aiAnalysis, logo // <-- INI TAMBAHANNYA
-                };
+    // 1. Kumpulkan SEMUA state yang aktif
+    const data = { 
+        regionName, governance, finance, equity, environment, 
+        sectors, swot, stakeholders, actionPlan, kpis, 
+        signer, dbConfig, 
+        sim, aiAnalysis, logo 
+    };
     
     // 2. Bungkus jadi file JSON
-                const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-                const link = document.createElement('a');
-                link.href = URL.createObjectURL(blob);
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
     
-    // Bikin nama file dinamis agar rapi
-                const safeName = regionName ? regionName.replace(/\s+/g,'_') : 'Untitled';
-                link.download = `S3_Strategy_${safeName}.json`;
+    // Penamaan file dinamis
+    const safeName = regionName ? regionName.replace(/\s+/g,'_') : 'Untitled';
+    link.download = `S3_Strategy_${safeName}.json`;
     
-                link.click();
-                };
+    link.click();
+};
 
-                const loadFromJSON = (e) => {
-                 const reader = new FileReader();
-                    reader.onload = (ev) => {
-                    try {
-                    const data = JSON.parse(ev.target.result);
+const loadFromJSON = (e) => {
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+        try {
+            const data = JSON.parse(ev.target.result);
             
-            // Core Data
-                    setRegionName(data.regionName || "");
-                    setGovernance(data.governance || { vision: "", timeline: "", coordIndex:0, policyCoh:0, pppReady:0, budgetAbs:0 });
-                    setFinance(data.finance || { publicInv: 0, privateInv: 0, fundingNeeded: 0, divIndex: 0, blendedReady: 0, smeSurvival: 0, accessCredit: 0, exportDiv: 0, informalityRate: 0 });
-                    setEquity(data.equity || { giniImpact: 0, genderInc: 0, smePart: 0, ruralShare: 0, youthMult: 0 }); 
-                    setEnvironment(data.environment || { climateVuln: 0, carbonInt: 0, waterRisk: 0, bioRisk: 0 });
+            // Distribusi data ke State
+            setRegionName(data.regionName || "");
+            setGovernance(data.governance || { vision: "", timeline: "", coordIndex:0, policyCoh:0, pppReady:0, budgetAbs:0 });
+            setFinance(data.finance || { publicInv: 0, privateInv: 0, fundingNeeded: 0, divIndex: 0, blendedReady: 0, smeSurvival: 0, accessCredit: 0, exportDiv: 0, informalityRate: 0 });
+            setEquity(data.equity || { giniImpact: 0, genderInc: 0, smePart: 0, ruralShare: 0, youthMult: 0 }); 
+            setEnvironment(data.environment || { climateVuln: 0, carbonInt: 0, waterRisk: 0, bioRisk: 0 });
+            setSectors(data.sectors || []);
+            setSwot(data.swot || { s: "", w: "", o: "", t: "" });
+            setStakeholders(data.stakeholders || []);
+            setActionPlan(data.actionPlan || []);
+            setKpis(data.kpis || []);
+            setSigner(data.signer || { name: "", title: "" });
+            setDbConfig(data.dbConfig || { provider: 'google', endpoint: '', apiKey: '', collection: 's3_data' });
             
-            // Arrays
-                    setSectors(data.sectors || []);
-                    setSwot(data.swot || { s: "", w: "", o: "", t: "" });
-                    setStakeholders(data.stakeholders || []);
-                    setActionPlan(data.actionPlan || []);
-                    setKpis(data.kpis || []);
+            // Load Data Tambahan (AI, Sim, Logo)
+            setSim(data.sim || { fund: 0, climate: 0, price: 0 });
+            setAiAnalysis(data.aiAnalysis || ""); 
+            setLogo(data.logo || null); 
             
-            // Settings & Signer
-                    setSigner(data.signer || { name: "", title: "" });
-                    setDbConfig(data.dbConfig || { provider: 'google', endpoint: '', apiKey: '', collection: 's3_data' });
-            
-            // --- TAMBAHAN BARU: Pastikan data ini di-load ---
-                    setSim(data.sim || { fund: 0, climate: 0, price: 0 });
-                    setAiAnalysis(data.aiAnalysis || ""); // Hasil generate AI yang terakhir
-                    setLogo(data.logo || null); // Logo (dalam format Base64)
-            
-                    alert("✅ Semua Data & Analisis AI Berhasil Di-load!");
-                    } catch (err) { 
-                    alert("❌ Invalid JSON File"); 
-                    }
-                    };
-                    if(e.target.files[0]) reader.readAsText(e.target.files[0]);
-                    e.target.value = null; // Reset input file
-                    };
+            alert("✅ Semua Data & Analisis AI Berhasil Di-load!");
+        } catch (err) { 
+            alert("❌ File JSON tidak valid atau rusak"); 
+        }
+    };
+    if(e.target.files[0]) reader.readAsText(e.target.files[0]);
+    e.target.value = null; // Reset input agar bisa upload file yang sama berkali-kali
+};
 
             // --- FUNGSI MODULAR FETCH ("BUNGLON") ---
                     const sendToServer = async () => {
