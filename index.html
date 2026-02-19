@@ -172,7 +172,26 @@
             // Monitoring & KPI
             kpiType: "Output = Hasil langsung kegiatan. Outcome = Manfaat yang dirasakan. Impact = Dampak luas/makro.",
             baseline: "Kondisi awal sebelum strategi dijalankan (Tahun & Nilai).",
-            target: "Target akhir yang dijanjikan dalam dokumen strategi (Tahun & Nilai)."
+            target: "Target akhir yang dijanjikan dalam dokumen strategi (Tahun & Nilai).",
+            
+            // Institutional Capacity
+            coordIndex: "Skor 0-100: Seberapa solid koordinasi antar dinas (Ego-sektoral rendah = skor tinggi).",
+            policyCoh: "Skor 0-100: Keselarasan kebijakan pusat dan daerah.",
+            pppReady: "Skor 0-100: Kesiapan pemda menerima skema Public-Private Partnership (KPBU).",
+            budgetAbs: "Skor 0-100: Kapasitas serapan anggaran APBD setiap tahun.",
+            signerName: "Nama Pejabat yang akan tanda tangan di halaman terakhir dokumen.",
+            
+            // Advanced Sector Metrics
+            rnd: "Persentase dari PDRB atau omzet yang diinvestasikan kembali untuk Riset & Pengembangan.",
+            collab: "Jumlah kerjasama resmi yang aktif antara industri ini dengan Universitas/Lembaga Riset.",
+            patents: "Jumlah hak kekayaan intelektual (Paten, Merek, Indikator Geografis) yang terdaftar.",
+            techIndex: "Skor 0-100 adopsi digital (IoT, E-commerce, otomatisasi pabrik).",
+            trl: "Technology Readiness Level (1-9). 1=Riset Dasar, 9=Teruji dan komersial masif.",
+            jobShift: "Proyeksi pertumbuhan/pergeseran penyerapan tenaga kerja dalam %.",
+            valueAdd: "Indeks 1-10 sejauh mana bahan baku diolah sebelum dijual.",
+            integration: "Indeks 1-10 integrasi hulu-hilir (rantai pasok terbentuk di dalam daerah).",
+            importSub: "Persentase (%) potensi produk ini bisa menggantikan barang yang selama ini diimpor.",
+            gvcPos: "Posisi di Global Value Chain (1-10). 1=Penyedia bahan mentah, 10=Pemilik Brand Global."
         };
 
         const SECTOR_CONFIG = [
@@ -520,13 +539,44 @@
             };
 
             const saveToJSON = () => {
-                const data = { regionName, governance, finance, equity, environment, sectors, swot, stakeholders, actionPlan, kpis, customModules, customData };
+                // Terdapat penambahan: signer dan dbConfig
+                const data = { regionName, governance, finance, equity, environment, sectors, swot, stakeholders, actionPlan, kpis, customModules, customData, signer, dbConfig };
                 const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
                 const link = document.createElement('a');
                 link.href = URL.createObjectURL(blob);
                 link.download = `S3_Strategy_${regionName.replace(/\s+/g,'_')}.json`;
                 link.click();
             };
+
+            const loadFromJSON = (e) => {
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    try {
+                        const data = JSON.parse(ev.target.result);
+                        setRegionName(data.regionName || "");
+                        setGovernance(data.governance || { vision: "", timeline: "", coordIndex:0, policyCoh:0, pppReady:0, budgetAbs:0 });
+                        setFinance(data.finance || { publicInv: 0, privateInv: 0, fundingNeeded: 0, divIndex: 0, blendedReady: 0 });
+                        // INI YANG KETINGGALAN KEMARIN (EQUITY)
+                        setEquity(data.equity || { giniImpact: 0, genderInc: 0, smePart: 0, ruralShare: 0, youthMult: 0 }); 
+                        setEnvironment(data.environment || { climateVuln: 0, carbonInt: 0, waterRisk: 0, bioRisk: 0 });
+                        setSectors(data.sectors || []);
+                        setSwot(data.swot || { s: "", w: "", o: "", t: "" });
+                        setStakeholders(data.stakeholders || []);
+                        setActionPlan(data.actionPlan || []);
+                        setKpis(data.kpis || []);
+                        setCustomModules(data.customModules || []);
+                        setCustomData(data.customData || {});
+                        // TAMBAHAN LOAD UNTUK PEJABAT & DB
+                        setSigner(data.signer || { name: "", title: "" });
+                        setDbConfig(data.dbConfig || { provider: 'google', endpoint: '', apiKey: '', collection: 's3_data' });
+                        
+                        alert("Data Loaded Successfully!");
+                    } catch (err) { alert("Invalid JSON File"); }
+                };
+                if(e.target.files[0]) reader.readAsText(e.target.files[0]);
+                e.target.value = null;
+            };
+
             // --- FUNGSI MODULAR FETCH ("BUNGLON") ---
 const sendToServer = async () => {
     if (!dbConfig.endpoint) {
@@ -581,30 +631,6 @@ const sendToServer = async () => {
         setIsSending(false);
     }
 };
-
-            const loadFromJSON = (e) => {
-                const reader = new FileReader();
-                reader.onload = (ev) => {
-                    try {
-                        const data = JSON.parse(ev.target.result);
-                        setRegionName(data.regionName || "");
-                        setGovernance(data.governance || { vision: "", timeline: "" });
-                        setFinance(data.finance || { publicInv: 0, privateInv: 0, fundingNeeded: 0, divIndex: 0, blendedReady: 0 });
-                        setEnvironment(data.environment || { climateVuln: 0, carbonInt: 0, waterRisk: 0, bioRisk: 0 });
-                        setSectors(data.sectors || []);
-                        setSwot(data.swot || { s: "", w: "", o: "", t: "" });
-                        setStakeholders(data.stakeholders || []);
-                        setActionPlan(data.actionPlan || []);
-                        setKpis(data.kpis || []);
-                        setCustomModules(data.customModules || []);
-                        setCustomData(data.customData || {});
-                        alert("Data Loaded Successfully!");
-                    } catch (err) { alert("Invalid JSON File"); }
-                };
-                if(e.target.files[0]) reader.readAsText(e.target.files[0]);
-                e.target.value = null;
-            };
-
             // --- CHART LOGIC ---
             const processedData = useMemo(() => {
                 const totLoc = sectors.reduce((a,b)=>a+(b.localVal||0),0) || 1;
@@ -887,11 +913,10 @@ const sendToServer = async () => {
                                     <div className="mt-4 pt-4 border-t border-slate-200">
                                     <label className="text-[9px] uppercase font-bold text-navy-800 mb-2 block bg-slate-200 p-1 rounded inline-block px-2">
                                         🏛️ Institutional Capacity (0-100%)</label><div className="grid grid-cols-2 gap-2">
-                                <Input label="Coordination Index" val={governance.coordIndex} setVal={v => setGovernance({...governance, coordIndex: v})} type="number" />
-                                <Input label="Policy Coherence" val={governance.policyCoh} setVal={v => setGovernance({...governance, policyCoh: v})} type="number" />
-                                <Input label="PPP Readiness" val={governance.pppReady} setVal={v => setGovernance({...governance, pppReady: v})} type="number" />
-                                <Input label="Budget Absorption" val={governance.budgetAbs} setVal={v => setGovernance({...governance, budgetAbs: v})} type="number" />
-                                     </div></div>
+                                <Input label="Coordination Index" fieldKey="coordIndex" val={governance.coordIndex} setVal={v => setGovernance({...governance, coordIndex: v})} type="number" />
+                                <Input label="Policy Coherence" fieldKey="policyCoh" val={governance.policyCoh} setVal={v => setGovernance({...governance, policyCoh: v})} type="number" />
+                                <Input label="PPP Readiness" fieldKey="pppReady" val={governance.pppReady} setVal={v => setGovernance({...governance, pppReady: v})} type="number" />
+                                <Input label="Budget Absorption" fieldKey="budgetAbs" val={governance.budgetAbs} setVal={v => setGovernance({...governance, budgetAbs: v})} type="number" />     </div></div>
 
                                     <div className="mt-4 pt-4 border-t border-slate-200">
                                     <label className="text-[9px] uppercase font-bold text-slate-400 mb-1 block">Logo Daerah/ Govt. Logo (PNG/JPG)</label>
