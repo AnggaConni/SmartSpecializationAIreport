@@ -152,12 +152,19 @@
             actionActivity: "Program konkret yang akan dijalankan.",
             actionOutput: "Target terukur dari kegiatan tersebut.",
             actionBudget: "Estimasi biaya yang dibutuhkan.",
+            swotLink: "SWOT mana yang diselesaikan oleh program ini? (Misal: W1, T2)",
+            kpiLink: "Target indikator mana yang didukung oleh program ini?",
+            riskLink: "Risiko apa (Iklim/Lingkungan) yang dikurangi lewat program ini?",
             // Finance
             publicInv: "Total investasi dari pemerintah/publik (USD Million).",
             privateInv: "Total investasi dari Swasta/FDI (USD Million).",
             fundingNeeded: "Total kebutuhan dana untuk mencapai Visi (USD Million).",
             divIndex: "Indeks Diversifikasi (0-100). Semakin tinggi, sumber dana makin bervariasi (tidak hanya bergantung pada APBD).",
             blendedReady: "Kesiapan institusi untuk skema Blended Finance/KPBU (0-100).",
+            smeSurvival: "Persentase UMKM yang bertahan hidup (beroperasi stabil) setelah 3-5 tahun berdiri.",
+            accessCredit: "Skor 0-100: Kemudahan pelaku usaha lokal dalam mendapatkan modal/kredit dari lembaga keuangan formal.",
+            exportDiv: "Skor 0-100: Seberapa beragam produk ekspor wilayah ini (tidak hanya bergantung pada 1-2 komoditas mentah).",
+            informalityRate: "Persentase pekerja/usaha yang beroperasi di sektor informal (tidak terdaftar, tanpa perlindungan sosial). Semakin tinggi angka ini, transformasi struktural makin sulit.",
             // Equity
             giniImpact: "Estimasi dampak strategi terhadap Rasio Gini. Angka minus (mis: -0.02) berarti baik (mengurangi ketimpangan).",
             genderInc: "Indeks Inklusi Gender (0-100%). Rasio keterlibatan perempuan dalam ekosistem.",
@@ -276,8 +283,14 @@
                 privateInv: 0,      // Investasi Swasta (USD M)
                 fundingNeeded: 0,   // Total Kebutuhan Dana (USD M)
                 divIndex: 0,        // Indeks Diversifikasi (0-100)
-                blendedReady: 0     // Kesiapan Blended Finance (0-100)
+                blendedReady: 0,     // Kesiapan Blended Finance (0-100)
+                // --- PRIVATE SECTOR DYNAMISM ---
+                smeSurvival: 0,      // SME Survival Rate (%)
+                accessCredit: 0,     // Access to Credit Index (0-100)
+                exportDiv: 0,        // Export Diversification Index (0-100)
+                informalityRate: 0   // Informality Rate (%)
             });
+            
             const [equity, setEquity] = useState({
                 giniImpact: 0,      // Proyeksi perubahan Gini (misal: -0.01 berarti mengurangi ketimpangan)
                 genderInc: 0,       // Indeks inklusi gender (0-100%)
@@ -373,29 +386,32 @@
              return { score: total, label, color };
             };
 
-                // --- FUNGSI BARU: UPGRADE FEASIBILITY INDEX ---
+            // --- FUNGSI BARU: UPGRADE FEASIBILITY INDEX ---
          const calculateFeasibility = (s) => {
-             // 1. Innovation Score (Sudah ada, skala 0-100)
+             // 1. Innovation Score (0-100)
              const inno = calculateInnoScore(s).score;
 
-             // 2. Institutional Capacity (Rata-rata 4 indikator Governance)
+             // 2. Institutional Capacity
              const instCap = ((governance.coordIndex || 0) + (governance.policyCoh || 0) + (governance.pppReady || 0) + (governance.budgetAbs || 0)) / 4;
 
-             // 3. Financial Readiness (Ambil dari kesiapan Blended Finance)
-             const finReady = finance.blendedReady || 0;
+             // 3. Financial & Private Readiness (Modifikasi Baru!)
+             // Kita gabungkan Blended Ready dengan akses kredit & kemampuan bertahan hidup
+             const privateReady = ((finance.blendedReady || 0) + (finance.accessCredit || 0) + (finance.smeSurvival || 0)) / 3;
 
-             // 4. Market Opportunity (Asumsi dari posisi GVC dikali 10 biar jadi skala 100)
-             const marketOpp = (s.gvcPos || 5) * 10;
+             // 4. Market Opportunity & Diversification
+             const marketOpp = ((s.gvcPos || 5) * 10 + (finance.exportDiv || 0)) / 2;
 
-             // 5. Risk Inverse (100 dikurangi rata-rata risiko iklim/air/bio)
+             // 5. Risk & Informality Inverse (Sektor informal jadi penarik/beban risiko)
              const avgRisk = ((environment.climateVuln || 0) + (environment.waterRisk || 0) + (environment.bioRisk || 0)) / 3;
-             const riskInverse = Math.max(0, 100 - avgRisk);
+             // Gabungkan risiko lingkungan dengan tingginya sektor informal (sebagai beban struktural)
+             const structuralDrag = (avgRisk * 0.5) + ((finance.informalityRate || 0) * 0.5);
+             const riskInverse = Math.max(0, 100 - structuralDrag);
 
-             // RUMUS COMPOSITE SESUAI REQUEST-MU
-             const totalScore = (0.3 * inno) + (0.2 * instCap) + (0.2 * finReady) + (0.2 * marketOpp) + (0.1 * riskInverse);
+             // RUMUS COMPOSITE
+             const totalScore = (0.25 * inno) + (0.20 * instCap) + (0.25 * privateReady) + (0.20 * marketOpp) + (0.10 * riskInverse);
              const finalScore = Math.round(totalScore);
 
-             // Klasifikasi Label & Warna UI
+             // Klasifikasi
              let label = "Not Ready";
              let color = "bg-red-100 text-red-700 border-red-200";
 
@@ -475,7 +491,12 @@
                     publicInv: 30,       // APBD/Pemerintah cuma sanggup $30 Juta
                     privateInv: 45,      // Komitmen Swasta/CSR $45 Juta
                     divIndex: 65,        // Indeks diversifikasi cukup baik (65/100)
-                    blendedReady: 55     // Kesiapan Blended Finance level menengah (55/100)
+                    blendedReady: 55,     // Kesiapan Blended Finance level menengah (55/100)
+                    blendedReady: 55,     // Kesiapan Blended Finance level menengah (55/100)
+                    smeSurvival: 60,      // 60% UMKM bertahan
+                    accessCredit: 45,     // Akses kredit masih sulit
+                    exportDiv: 30,        // Terlalu bergantung pada ikan/kopi mentah
+                    informalityRate: 75   // 75% ekonomi digerakkan sektor informal
                 });
                 setEquity({
                 giniImpact: -0.015, // Strategi ini diproyeksikan menurunkan Gini 0.015 poin
@@ -595,6 +616,22 @@
                     price: 0       // Harga ekspor stabil
                 });
 
+                // 8. Action Plan (Roadmap)
+                setActionPlan([
+                    { 
+                        id: 201, activity: "Pembangunan Rumah Jemur Kopi", output: "5 Unit Green House", budget: "500 Juta", year: "2024", sdg: "SDG 9",
+                        swotLink: "W1 (Infrastruktur Pasca Panen)", kpiLink: "Pembangunan Rumah Jemur", riskLink: "Climate Vuln. (Gagal Panen Hujan)"
+                    },
+                    { 
+                        id: 202, activity: "Festival Tenun Ikat Internasional", output: "1000 Pengunjung/Buyer", budget: "1 Milyar", year: "2025", sdg: "SDG 11",
+                        swotLink: "W3 (Branding), O1 (Slow Fashion)", kpiLink: "Nilai Ekspor Premium", riskLink: "-"
+                    },
+                    { 
+                        id: 203, activity: "Digitalisasi UMKM (Onboarding)", output: "50 UMKM Go Digital", budget: "200 Juta", year: "2024", sdg: "SDG 8",
+                        swotLink: "W3 (Branding Digital)", kpiLink: "Sertifikasi IG UMKM", riskLink: "-"
+                    }
+                ]);
+
                 alert("Sample Data Lengkap (SDG & Tech Ready) Telah Dimuat!");
             }; // <--- PENUTUP FUNGSI loadSampleData YANG BENAR ADA DI SINI
 
@@ -615,7 +652,7 @@
                         const data = JSON.parse(ev.target.result);
                         setRegionName(data.regionName || "");
                         setGovernance(data.governance || { vision: "", timeline: "", coordIndex:0, policyCoh:0, pppReady:0, budgetAbs:0 });
-                        setFinance(data.finance || { publicInv: 0, privateInv: 0, fundingNeeded: 0, divIndex: 0, blendedReady: 0 });
+                        setFinance(data.finance || { publicInv: 0, privateInv: 0, fundingNeeded: 0, divIndex: 0, blendedReady: 0, smeSurvival: 0, accessCredit: 0, exportDiv: 0, informalityRate: 0 });
                         // INI YANG KETINGGALAN KEMARIN (EQUITY)
                         setEquity(data.equity || { giniImpact: 0, genderInc: 0, smePart: 0, ruralShare: 0, youthMult: 0 }); 
                         setEnvironment(data.environment || { climateVuln: 0, carbonInt: 0, waterRisk: 0, bioRisk: 0 });
@@ -1173,6 +1210,13 @@ useEffect(() => {
                                                             <label className="text-[9px] font-bold text-slate-400 uppercase">Year</label>
                                                             <input className="w-full border p-1 rounded text-xs" value={act.year||""} onChange={e=>{const n=[...actionPlan]; n[idx].year=e.target.value; setActionPlan(n)}} />
                                                         </div>
+                                                        <div className="mt-3 pt-3 border-t border-slate-200">
+                                                        <div className="text-[9px] font-bold text-navy-800 uppercase mb-2 bg-slate-200 inline-block px-2 py-0.5 rounded">🔗 Coherence Mapping</div>
+                                                        <Input label="Budget Needed" fieldKey="actionBudget" val={act.budget||""} setVal={v=>{const n=[...actionPlan]; n[idx].budget=v; setActionPlan(n)}} placeholder="e.g. 500 Juta / $50K" />
+                                                        <Input label="SWOT Addressed" fieldKey="swotLink" val={act.swotLink||""} setVal={v=>{const n=[...actionPlan]; n[idx].swotLink=v; setActionPlan(n)}} placeholder="e.g. W1, O2" />
+                                                        <Input label="KPI Linked" fieldKey="kpiLink" val={act.kpiLink||""} setVal={v=>{const n=[...actionPlan]; n[idx].kpiLink=v; setActionPlan(n)}} placeholder="e.g. Volume Ekspor" />
+                                                        <Input label="Risk Mitigated" fieldKey="riskLink" val={act.riskLink||""} setVal={v=>{const n=[...actionPlan]; n[idx].riskLink=v; setActionPlan(n)}} placeholder="e.g. Climate Vulnerability" />
+                                                        </div>
                                                         <div className="flex-1">
                                                             <label className="text-[9px] font-bold text-slate-400 uppercase">SDG Alignment</label>
                                                             <select className="w-full border p-1 rounded text-xs bg-white" value={act.sdg||""} onChange={e=>{const n=[...actionPlan]; n[idx].sdg=e.target.value; setActionPlan(n)}}>
@@ -1192,7 +1236,7 @@ useEffect(() => {
                             </Accordion>
 
                             {/* 6. FINANCIAL LEVERAGE (NEW) */}
-                            <Accordion title="Financial Leverage" icon="💰" isOpen={activeSection === 'finance'} onClick={() => setActiveSection(activeSection === 'finance' ? '' : 'finance')}>
+                            <Accordion title="Financial & Private Dynamism" icon="💰" isOpen={activeSection === 'finance'} onClick={() => setActiveSection(activeSection === 'finance' ? '' : 'finance')}>
                                 <div className="p-2 bg-blue-50 rounded mb-4 text-[10px] text-blue-800 border border-blue-200">
                                     <strong>Tip:</strong> Isi dalam juta USD (USD Million). Rasio dan Gap Investasi akan dihitung otomatis.
                                 </div>
@@ -1205,7 +1249,17 @@ useEffect(() => {
                                     <Input label="Diversification (0-100)" fieldKey="divIndex" val={finance.divIndex} setVal={v => setFinance({...finance, divIndex: parseFloat(v) || 0})} type="number" />
                                     <Input label="Blended Ready (0-100)" fieldKey="blendedReady" val={finance.blendedReady} setVal={v => setFinance({...finance, blendedReady: parseFloat(v) || 0})} type="number" />
                                 </div>
+                                <div className="mt-3 pt-3 border-t border-slate-200">
+                                    <div className="text-[9px] font-bold text-navy-800 uppercase mb-2 bg-slate-200 inline-block px-2 py-0.5 rounded">🏢 Private Sector Dynamism</div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <Input label="SME Survival (%)" fieldKey="smeSurvival" val={finance.smeSurvival} setVal={v => setFinance({...finance, smeSurvival: parseFloat(v) || 0})} type="number" />
+                                        <Input label="Credit Access (0-100)" fieldKey="accessCredit" val={finance.accessCredit} setVal={v => setFinance({...finance, accessCredit: parseFloat(v) || 0})} type="number" />
+                                        <Input label="Export Div. (0-100)" fieldKey="exportDiv" val={finance.exportDiv} setVal={v => setFinance({...finance, exportDiv: parseFloat(v) || 0})} type="number" />
+                                        <Input label="Informality Rate (%)" fieldKey="informalityRate" val={finance.informalityRate} setVal={v => setFinance({...finance, informalityRate: parseFloat(v) || 0})} type="number" />
+                                    </div>
+                                </div>
                             </Accordion>
+
                             {/* 7. SOCIAL & EQUITY LENS (NEW) */}
                             <Accordion title="Social & Equity Lens" icon="⚖️" isOpen={activeSection === 'equity'} onClick={() => setActiveSection(activeSection === 'equity' ? '' : 'equity')}>
                                 <div className="grid grid-cols-2 gap-2">
@@ -1425,7 +1479,7 @@ useEffect(() => {
                             {(finance.fundingNeeded > 0) && (
                                 <div className="mb-12 px-10 page-break-avoid animate-fadeIn">
                                     <h3 className="section-title text-sm font-bold text-navy-900 mb-4 flex items-center gap-2 uppercase tracking-widest border-b pb-2">
-                                    <span className="text-xl">💰</span> Financial Leverage & Investment</h3>
+                                    <span className="text-xl">💰</span>Financial & Private Dynamism</h3>
                                     
                                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                                         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center">
@@ -1467,6 +1521,32 @@ useEffect(() => {
                                             Diversification Index: <span className="font-bold text-navy-800">{finance.divIndex}/100</span>
                                         </div>
                                     </div>
+                                    {/* PRIVATE SECTOR DYNAMISM METRICS */}
+                                    {(finance.informalityRate > 0 || finance.smeSurvival > 0) && (
+                                        <div className="mt-4 grid grid-cols-4 gap-3">
+                                            <div className="col-span-4 mb-1 text-[9px] font-bold text-slate-400 uppercase tracking-widest border-b pb-1">Private Sector Dynamism</div>
+                                            
+                                            <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 text-center">
+                                                <div className="text-[8px] uppercase font-bold text-slate-500 mb-1">SME Survival Rate</div>
+                                                <div className="text-lg font-bold text-emerald-700">{finance.smeSurvival}%</div>
+                                            </div>
+                                            
+                                            <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 text-center">
+                                                <div className="text-[8px] uppercase font-bold text-slate-500 mb-1">Credit Access Index</div>
+                                                <div className="text-lg font-bold text-blue-700">{finance.accessCredit}</div>
+                                            </div>
+                                            
+                                            <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 text-center">
+                                                <div className="text-[8px] uppercase font-bold text-slate-500 mb-1">Export Diversification</div>
+                                                <div className="text-lg font-bold text-indigo-700">{finance.exportDiv}</div>
+                                            </div>
+                                            
+                                            <div className={`p-3 rounded-lg border text-center ${finance.informalityRate > 50 ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-200'}`}>
+                                                <div className="text-[8px] uppercase font-bold text-slate-500 mb-1">Informality Rate</div>
+                                                <div className={`text-lg font-bold ${finance.informalityRate > 50 ? 'text-red-700' : 'text-slate-700'}`}>{finance.informalityRate}%</div>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             )}
                             {/* SOCIAL & EQUITY DASHBOARD */}
@@ -1702,6 +1782,39 @@ useEffect(() => {
                                     </div>
                                 )}
                             </div>
+
+                            {/* STRATEGIC ALIGNMENT MATRIX */}
+                            {actionPlan.length > 0 && (
+                                <div className="mb-12 page-break">
+                                    <h3 className="section-title text-xl font-bold text-navy-900 mb-6 flex items-center gap-3"><span className="w-8 h-1 bg-slate-800 block"></span>Policy Coherence Matrix</h3>
+                                    
+                                    <div className="overflow-x-auto page-break-avoid">
+                                        <table className="w-full text-sm text-left border rounded-lg overflow-hidden shadow-sm">
+                                            <thead className="bg-slate-800 text-white uppercase text-[10px] tracking-wider">
+                                                <tr>
+                                                    <th className="p-3 w-1/4">Action Plan (Activity)</th>
+                                                    <th className="p-3 w-1/6 text-right">Budget</th>
+                                                    <th className="p-3">SWOT Addressed</th>
+                                                    <th className="p-3">KPI Linked</th>
+                                                    <th className="p-3">Risk Mitigated</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-100 border bg-white">
+                                                {actionPlan.sort((a,b)=>a.year - b.year).map(act => (
+                                                    <tr key={act.id} className="hover:bg-slate-50">
+                                                        <td className="p-3 font-bold text-navy-800 text-xs">{act.activity}</td>
+                                                        <td className="p-3 text-xs font-mono text-terracotta-600 font-bold text-right">{act.budget || "-"}</td>
+                                                        <td className="p-3 text-xs text-slate-600">{act.swotLink || <span className="text-red-400 italic">Unmapped</span>}</td>
+                                                        <td className="p-3 text-xs text-indigo-600 font-medium">{act.kpiLink || <span className="text-red-400 italic">Unmapped</span>}</td>
+                                                        <td className="p-3 text-xs text-red-500">{act.riskLink || "-"}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            )}
+
                             {/* MONITORING & KPI DASHBOARD */}
                             {kpis.length > 0 && (
                                 <div className="mb-12 page-break">
