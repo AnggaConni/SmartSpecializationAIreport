@@ -366,6 +366,42 @@
              return { score: total, label, color };
             };
 
+                // --- FUNGSI BARU: UPGRADE FEASIBILITY INDEX ---
+         const calculateFeasibility = (s) => {
+             // 1. Innovation Score (Sudah ada, skala 0-100)
+             const inno = calculateInnoScore(s).score;
+
+             // 2. Institutional Capacity (Rata-rata 4 indikator Governance)
+             const instCap = ((governance.coordIndex || 0) + (governance.policyCoh || 0) + (governance.pppReady || 0) + (governance.budgetAbs || 0)) / 4;
+
+             // 3. Financial Readiness (Ambil dari kesiapan Blended Finance)
+             const finReady = finance.blendedReady || 0;
+
+             // 4. Market Opportunity (Asumsi dari posisi GVC dikali 10 biar jadi skala 100)
+             const marketOpp = (s.gvcPos || 5) * 10;
+
+             // 5. Risk Inverse (100 dikurangi rata-rata risiko iklim/air/bio)
+             const avgRisk = ((environment.climateVuln || 0) + (environment.waterRisk || 0) + (environment.bioRisk || 0)) / 3;
+             const riskInverse = Math.max(0, 100 - avgRisk);
+
+             // RUMUS COMPOSITE SESUAI REQUEST-MU
+             const totalScore = (0.3 * inno) + (0.2 * instCap) + (0.2 * finReady) + (0.2 * marketOpp) + (0.1 * riskInverse);
+             const finalScore = Math.round(totalScore);
+
+             // Klasifikasi Label & Warna UI
+             let label = "Not Ready";
+             let color = "bg-red-100 text-red-700 border-red-200";
+
+             if (finalScore > 75) { 
+                 label = "Highly Feasible"; 
+                 color = "bg-emerald-100 text-emerald-800 border-emerald-200"; 
+             } else if (finalScore > 50) { 
+                 label = "Moderate Prep"; 
+                 color = "bg-amber-100 text-amber-800 border-amber-200"; 
+             }
+
+             return { score: finalScore, label, color };
+         };
 
             // Fungsi Analisis Jalur Transformasi (Upgrade Pathway)
         const analyzePathway = (s) => {
@@ -1380,7 +1416,8 @@ const sendToServer = async () => {
                                                     <th className="p-3 text-right">LQ Score</th>
                                                     <th className="p-3 text-right">Export</th>
                                                     <th className="p-3 bg-indigo-900 text-indigo-100 w-1/5">Transformation Pathway</th>
-                                                    <th className="p-3 text-center bg-purple-900">Innovation Score</th> 
+                                                    <th className="p-3 text-center bg-purple-900">Innovation Score</th>
+                                                    <th className="p-3 text-center bg-emerald-900 text-emerald-100">Feasibility Index</th> 
                                                     <th className="p-3 text-center">TRL</th>
                                                     <th className="p-3">Strategic Rationale</th>
                                                     <th className="p-3 bg-blue-900 text-blue-100">Tech Focus</th>
@@ -1389,6 +1426,7 @@ const sendToServer = async () => {
                                             <tbody className="divide-y divide-slate-100 border">{processedData.data.map(s => {
                                             const path = analyzePathway(s);
                                             const inno = calculateInnoScore(s); 
+                                            const feas = calculateFeasibility(s);
                                             return (
                                                 <tr key={s.id} className="hover:bg-slate-50">
                                                     <td className="p-3 font-bold text-navy-800">{s.name}</td>
@@ -1400,6 +1438,7 @@ const sendToServer = async () => {
                                                             <span className="text-[8px] bg-slate-200 px-1 rounded" title="Import Substitution">IS:{s.importSub||0}%</span>
                                                             <span className="text-[8px] bg-slate-200 px-1 rounded" title="GVC Position">GVC:{s.gvcPos||0}</span></div></td>
                                                     <td className="p-3 text-center"><div className={`text-[10px] font-bold px-2 py-1 rounded border ${inno.color} inline-block`}>{inno.score}/100 <br/> {inno.label}</div></td>
+                                                    <td className="p-3 text-center"><div className={`text-[10px] font-bold px-2 py-1 rounded border ${feas.color} inline-block shadow-sm`}>{feas.score}/100 <br/> {feas.label}</div></td>
                                                     <td className="p-3 text-center font-mono text-xs">Level {s.trl || "-"}</td>
                                                     <td className="p-3 text-slate-600 text-xs italic">{s.rationale}</td>
                                                     <td className="p-3 text-blue-800 text-xs font-medium bg-blue-50">{s.tech || "-"}</td></tr>
