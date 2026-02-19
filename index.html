@@ -319,9 +319,13 @@
             const handleLogoUpload = (e) => {
             const file = e.target.files[0];
             if (file) {
-             if (logo) URL.revokeObjectURL(logo); // Bersihkan memori dari logo sebelumnya
-                const imageUrl = URL.createObjectURL(file);
-                setLogo(imageUrl);
+            const reader = new FileReader();
+            reader.onloadend = () => {
+            // reader.result berisi string Base64 yang sangat panjang
+            // Inilah yang bisa disimpan ke JSON
+            setLogo(reader.result); 
+            };
+            reader.readAsDataURL(file); // Proses konversi biner ke teks
             }
             };
             
