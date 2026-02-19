@@ -1188,9 +1188,23 @@
                                             <h4 className="text-xs font-bold text-center mb-2">Location Quotient (LQ)</h4>
                                             <div className="h-56"><canvas ref={lqRef}></canvas></div>
                                         </div>
-                                        <div className="bg-white border rounded-lg p-4 shadow-sm">
+                                        <div className="bg-white border rounded-lg p-4 shadow-sm relative flex flex-col">
                                             <h4 className="text-xs font-bold text-center mb-2">Sector Potential Radar</h4>
-                                            <div className="h-56"><canvas ref={radarRef}></canvas></div>
+                                            
+                                            <div className="h-56 flex-1"><canvas ref={radarRef}></canvas></div>
+                                            
+                                            {/* --- SMART DISCLAIMER (TRANSPARENCY) --- */}
+                                            {(!environment.climateVuln && !environment.waterRisk && !environment.bioRisk) ? (
+                                                <div className="mt-3 bg-amber-50 text-amber-700 text-[9px] p-2 rounded border border-amber-200 text-center flex items-center justify-center gap-1 animate-fadeIn">
+                                                    <span className="text-xs">⚠️</span> 
+                                                    <i><strong>Partial Data:</strong> Risk Composite & Inst. Support dimensions are based on limited available data.</i>
+                                                </div>
+                                            ) : (
+                                                <div className="mt-3 bg-emerald-50 text-emerald-700 text-[9px] p-2 rounded border border-emerald-200 text-center flex items-center justify-center gap-1 animate-fadeIn">
+                                                    <span className="text-xs">✅</span> 
+                                                    <i><strong>Verified:</strong> Full ESG & Risk dimensions applied.</i>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
 
