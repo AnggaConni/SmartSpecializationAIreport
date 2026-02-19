@@ -315,6 +315,13 @@
             const [swot, setSwot] = useState({ s: "", w: "", o: "", t: "" });
             const [stakeholders, setStakeholders] = useState([]);
             const [actionPlan, setActionPlan] = useState([]);
+
+            // --- STATE UNTUK SCENARIO SIMULATION ---
+            const [sim, setSim] = useState({ 
+             fund: 0,      // -50% s/d +50%
+             climate: 0,   // -50% s/d +50%
+             price: 0      // -50% s/d +50%
+             });
             
             // Legacy & UI State
             const [customModules, setCustomModules] = useState([]);
@@ -442,6 +449,7 @@
             const reportRef = useRef(null);
             const lqRef = useRef(null);
             const radarRef = useRef(null);
+            const simRef = useRef(null);
             const chartInstances = useRef({});
 
             // --- DATA HANDLERS SAMPLE DUMMY ---
@@ -551,7 +559,7 @@
                         output: "5 Unit Green House", 
                         budget: "500 Juta", 
                         year: "2024",
-                        sdg: "SDG 9" // <--- Industry & Innovation (Warna Oranye)
+                        sdg: "SDG 9" 
                     },
                     { 
                         id: 202, 
@@ -559,7 +567,7 @@
                         output: "1000 Pengunjung/Buyer", 
                         budget: "1 Milyar", 
                         year: "2025",
-                        sdg: "SDG 11" // <--- Sustainable Cities/Communities (Warna Kuning)
+                        sdg: "SDG 11" 
                     },
                     { 
                         id: 203, 
@@ -567,12 +575,28 @@
                         output: "50 UMKM Go Digital", 
                         budget: "200 Juta", 
                         year: "2024",
-                        sdg: "SDG 8" // <--- Decent Work (Warna Merah)
+                        sdg: "SDG 8" 
                     }
                 ]);
 
+                // 6. Dummy Data untuk Universal API Connector (Google Fullstack)
+                setDbConfig({
+                    provider: 'google', 
+                    endpoint: 'https://script.google.com/macros/s/AKfycb_DUMMY_WEBHOOK_URL/exec',
+                    apiKey: '',
+                    collection: 's3_data'
+                });
+
+                // 7. Dummy Data untuk Scenario Simulation (What-If)
+                // Skenario: Dapat suntikan dana 20%, tapi risiko iklim naik 15%
+                setSim({
+                    fund: 20,      // +20% Public Funding
+                    climate: 15,   // +15% Climate Risk
+                    price: 0       // Harga ekspor stabil
+                });
+
                 alert("Sample Data Lengkap (SDG & Tech Ready) Telah Dimuat!");
-            };
+            }; // <--- PENUTUP FUNGSI loadSampleData YANG BENAR ADA DI SINI
 
             const saveToJSON = () => {
                 // Terdapat penambahan: signer dan dbConfig
@@ -678,74 +702,167 @@ const sendToServer = async () => {
                 return { data };
             }, [sectors]);
 
-            useEffect(() => {
-                if(processedData.data.length === 0) return;
-                // Update Charts logic similar to before, kept concise
-                if(lqRef.current) {
-                    if(chartInstances.current.lq) chartInstances.current.lq.destroy();
-                    chartInstances.current.lq = new Chart(lqRef.current, {
-                        type: 'bar',
-                        data: {
-                            labels: processedData.data.map(s => s.name),
-                            datasets: [{ label: 'LQ Score', data: processedData.data.map(s => s.lq), backgroundColor: '#1e3a5f', borderRadius: 4 }]
-                        },
-                        options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
-                    });
+            // --- LOGIKA KALKULATOR SCENARIO (WHAT-IF) ---
+         const simResults = useMemo(() => {
+             // Ambil Baseline dari data Sektor & Equity
+             const baseExp = sectors.reduce((a,b)=>a+(b.exportVal||0), 0);
+             const baseWork = sectors.reduce((a,b)=>a+(b.workers||0), 0);
+             const baseGini = equity.giniImpact || 0;
+
+             // Asumsi Elastisitas (Rumus Ekonomi Sederhana)
+             // 1. Funding naik -> Ekspor & Pekerjaan naik, Gini turun (makin merata)
+             // 2. Climate Risk naik -> Ekspor & Pekerjaan turun tajam, Gini naik (ketimpangan memburuk)
+             // 3. Export Price naik -> Ekspor naik drastis, Pekerjaan naik dikit
+             const projExp = baseExp * (1 + (sim.fund * 0.005) - (sim.climate * 0.008) + (sim.price * 0.01));
+             const projWork = Math.round(baseWork * (1 + (sim.fund * 0.004) - (sim.climate * 0.005) + (sim.price * 0.002)));
+             const projGini = baseGini - (sim.fund * 0.0003) + (sim.climate * 0.0006) - (sim.price * 0.0001);
+
+             // Hitung Selisih/Pertumbuhan (%)
+             const expDelta = baseExp ? ((projExp - baseExp) / baseExp) * 100 : 0;
+             const workDelta = baseWork ? ((projWork - baseWork) / baseWork) * 100 : 0;
+             const giniDelta = projGini - baseGini;
+
+             return { baseExp, projExp, expDelta, baseWork, projWork, workDelta, baseGini, projGini, giniDelta };
+         }, [sectors, equity, sim]);
+
+            // --- CHART LOGIC & RENDERING ---
+useEffect(() => {
+    if(processedData.data.length === 0) return;
+
+    // --- 1. BAR CHART: LOCATION QUOTIENT (LQ) ---
+    if(lqRef.current) {
+        if(chartInstances.current.lq) chartInstances.current.lq.destroy();
+        chartInstances.current.lq = new Chart(lqRef.current, {
+            type: 'bar',
+            data: {
+                labels: processedData.data.map(s => s.name),
+                datasets: [{ 
+                    label: 'LQ Score', 
+                    data: processedData.data.map(s => s.lq), 
+                    backgroundColor: '#1e3a5f', 
+                    borderRadius: 4 
+                }]
+            },
+            options: { 
+                indexAxis: 'y', 
+                responsive: true, 
+                maintainAspectRatio: false, 
+                plugins: { legend: { display: false } },
+                scales: { x: { beginAtZero: true } } // Memastikan sumbu X mulai dari 0
+            }
+        });
+    }
+
+    // --- 2. RADAR CHART: S3 IDEAL POTENTIAL ---
+    if(radarRef.current) {
+        if(chartInstances.current.radar) chartInstances.current.radar.destroy();
+        
+        const govScore = governance ? ((governance.coordIndex || 0) + (governance.policyCoh || 0)) / 20 : 5;
+        const riskInverse = environment ? 10 - (((environment.climateVuln || 0) + (environment.waterRisk || 0)) / 20) : 5;
+
+        chartInstances.current.radar = new Chart(radarRef.current, {
+            type: 'radar',
+            data: {
+                labels: ['Economic Strength', 'Innovation Cap.', 'Market Opp.', 'Inst. Support', 'Risk Level (Inv)', 'Upgrade Feas.'],
+                datasets: processedData.data.slice(0,3).map((s,i) => {
+                    const econStr = Math.min(10, (s.lq || 1) * 2 + (s.exportVal > 20 ? 3 : 1));
+                    const innoCap = calculateInnoScore(s).score / 10;
+                    const marketOpp = Math.min(10, (s.gvcPos || 5) + (s.exportVal > 10 ? 2 : 0));
+                    const upgradeFeas = Math.min(10, ((s.trl || 5) + (s.integration || 5)) / 2 * 1.2);
+
+                    const colors = [
+                        { bg: 'rgba(30,58,95,0.2)', border: '#1e3a5f' },
+                        { bg: 'rgba(224,122,95,0.2)', border: '#e07a5f' },
+                        { bg: 'rgba(30,142,62,0.2)', border: '#1e8e3e' }
+                    ];
+
+                    return {
+                        label: s.name,
+                        data: [econStr, innoCap, marketOpp, govScore, riskInverse, upgradeFeas],
+                        backgroundColor: colors[i % 3].bg,
+                        borderColor: colors[i % 3].border,
+                        borderWidth: 2,
+                        pointBackgroundColor: colors[i % 3].border
+                    };
+                })
+            },
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: false, 
+                scales: { r: { min: 0, max: 10, ticks: { stepSize: 2 } } },
+                plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 9 } } } }
+            }
+        });
+    }
+
+    // --- 3. BAR CHART: SCENARIO SIMULATION (DENGAN TEXT WRAPPING) ---
+    if(simRef.current) {
+        if(chartInstances.current.sim) chartInstances.current.sim.destroy();
+        
+        // Fungsi helper untuk memecah teks panjang menjadi beberapa baris (word wrap)
+        // Chart.js menerima array string untuk label multi-baris.
+        const wrapLabel = (str, maxChars) => {
+            if (str.length <= maxChars) return str;
+            const words = str.split(' ');
+            let lines = [];
+            let currentLine = words[0];
+
+            for (let i = 1; i < words.length; i++) {
+                // Cek apakah kata berikutnya masih muat di baris ini
+                if (currentLine.length + words[i].length + 1 <= maxChars) {
+                    currentLine += ' ' + words[i];
+                } else {
+                    // Jika tidak, simpan baris saat ini dan mulai baris baru
+                    lines.push(currentLine);
+                    currentLine = words[i];
                 }
-                // --- UPDATE: RADAR CHART S3 IDEAL ---
-                if(radarRef.current) {
-                    if(chartInstances.current.radar) chartInstances.current.radar.destroy();
-                    
-                    // Kita tarik data Governance (Inst. Support) dan Environment (Risk Inverse)
-                    // Jika data belum diisi, kita beri nilai default tengah (5 dari skala 10)
-                    const govScore = governance ? ((governance.coordIndex || 0) + (governance.policyCoh || 0)) / 20 : 5;
-                    
-                    // Risk Inverse = Semakin kecil risiko lingkungan, skor radarnya makin besar/luas (mendekati 10)
-                    const riskInverse = environment ? 10 - (((environment.climateVuln || 0) + (environment.waterRisk || 0)) / 20) : 5;
+            }
+            // Tambahkan baris terakhir
+            lines.push(currentLine);
+            return lines;
+        };
 
-                    chartInstances.current.radar = new Chart(radarRef.current, {
-                        type: 'radar',
-                        data: {
-                            // Ini adalah 6 sumbu ideal arahan dosen kebijakan publik!
-                            labels: ['Economic Strength', 'Innovation Cap.', 'Market Opp.', 'Inst. Support', 'Risk Level (Inv)', 'Upgrade Feas.'],
-                            datasets: processedData.data.slice(0,3).map((s,i) => {
-                                
-                                // Kalkulasi cerdas dari data input sektor (Skala 0 - 10)
-                                const econStr = Math.min(10, (s.lq || 1) * 2 + (s.exportVal > 20 ? 3 : 1));
-                                const innoCap = calculateInnoScore(s).score / 10; // Konversi dari 100 ke 10
-                                const marketOpp = Math.min(10, (s.gvcPos || 5) + (s.exportVal > 10 ? 2 : 0));
-                                const upgradeFeas = Math.min(10, ((s.trl || 5) + (s.integration || 5)) / 2 * 1.2);
-
-                                // Palet warna elegan untuk 3 sektor teratas
-                                const colors = [
-                                    { bg: 'rgba(30,58,95,0.2)', border: '#1e3a5f' },   // Navy
-                                    { bg: 'rgba(224,122,95,0.2)', border: '#e07a5f' }, // Terracotta
-                                    { bg: 'rgba(30,142,62,0.2)', border: '#1e8e3e' }    // Emerald (Hijau)
-                                ];
-
-                                return {
-                                    label: s.name,
-                                    data: [econStr, innoCap, marketOpp, govScore, riskInverse, upgradeFeas],
-                                    backgroundColor: colors[i % 3].bg,
-                                    borderColor: colors[i % 3].border,
-                                    borderWidth: 2,
-                                    pointBackgroundColor: colors[i % 3].border
-                                };
-                            })
-                        },
-                        options: { 
-                            responsive: true, 
-                            maintainAspectRatio: false, 
-                            scales: { 
-                                r: { min: 0, max: 10, ticks: { stepSize: 2 } } 
-                            },
-                            plugins: {
-                                legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 9 } } }
-                            }
+        chartInstances.current.sim = new Chart(simRef.current, {
+            type: 'bar',
+            data: {
+                // Gunakan fungsi wrapLabel untuk label yang berpotensi panjang
+                // Saya set batas 15 karakter agar pas di layout.
+                labels: [
+                    wrapLabel('Export Impact (%)', 15), 
+                    wrapLabel('Employment Impact (%)', 15)
+                ],
+                datasets: [{
+                    label: 'Scenario vs Baseline',
+                    data: [simResults.expDelta, simResults.workDelta],
+                    backgroundColor: [
+                        simResults.expDelta >= 0 ? '#1e8e3e' : '#e07a5f',
+                        simResults.workDelta >= 0 ? '#1e8e3e' : '#e07a5f'
+                    ],
+                    borderRadius: 4
+                }]
+            },
+            options: { 
+                indexAxis: 'y', 
+                responsive: true, 
+                maintainAspectRatio: false, 
+                plugins: { legend: { display: false } },
+                scales: { 
+                    x: { suggestedMin: -20, suggestedMax: 20 },
+                    y: {
+                        ticks: {
+                            // Konfigurasi tambahan agar label terlihat rapi
+                            autoSkip: false, // Pastikan semua label ditampilkan
+                            maxRotation: 0,  // Mencegah label miring
+                            font: { size: 10 }, // Ukuran font sedikit diperkecil agar muat
+                            crossAlign: 'center' // Posisi vertikal di tengah
                         }
-                    });
+                    }
                 }
-            }, [processedData, governance, environment]);
+            }
+        });
+    }
+
+}, [processedData, governance, environment, simResults]); // Dependency array lengkap
 
             const handleAI = async () => {
                 if(!apiKey) return setShowKeyModal(true);
@@ -848,79 +965,91 @@ const sendToServer = async () => {
                         </div>
                     )}
                     {/* --- UI MODAL UNIVERSAL CLOUD CONNECTOR --- */}
-{showDbModal && (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-        <div className="bg-white p-6 rounded-xl shadow-2xl w-[450px] animate-fadeIn border border-slate-200">
-            <div className="flex justify-between items-center mb-4">
-                <h3 className="font-bold text-lg flex items-center gap-2">🚀 Universal API Connector</h3>
-                <button onClick={()=>setShowDbModal(false)} className="text-slate-400 hover:text-red-500 font-bold">✕</button>
-            </div>
+                    {showDbModal && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+                            <div className="bg-white p-6 rounded-xl shadow-2xl w-[450px] animate-fadeIn border border-slate-200">
+                                <div className="flex justify-between items-center mb-4">
+                                    <h3 className="font-bold text-lg flex items-center gap-2">🚀 Universal API Connector</h3>
+                                    <button onClick={()=>setShowDbModal(false)} className="text-slate-400 hover:text-red-500 font-bold">✕</button>
+                                </div>
 
-            <div className="bg-indigo-50 border border-indigo-200 text-indigo-800 text-[10px] p-3 rounded-lg mb-4 flex items-start gap-2">
-                <span className="text-lg leading-none">ℹ️</span>
-                <div>
-                    <strong>Standardized JSON Payload:</strong><br/>
-                    Data yang dikirim menggunakan struktur murni. Mendukung integrasi dengan <i>Data Warehouse</i> apapun.
-                </div>
-            </div>
+                                <div className="bg-indigo-50 border border-indigo-200 text-indigo-800 text-[10px] p-3 rounded-lg mb-4 flex items-start gap-2">
+                                    <span className="text-lg leading-none">ℹ️</span>
+                                    <div>
+                                        <strong>Standardized JSON Payload:</strong><br/>
+                                        Data yang dikirim menggunakan struktur murni. Mendukung integrasi dengan <i>Data Warehouse</i> apapun.
+                                    </div>
+                                </div>
 
-            <label className="text-[9px] font-bold text-slate-500 uppercase block mb-1">Target Platform</label>
-            <select 
-                className="w-full border p-2 rounded mb-3 text-sm bg-slate-50 focus:border-blue-500 outline-none font-bold text-navy-800"
-                value={dbConfig.provider} 
-                onChange={e=>setDbConfig({...dbConfig, provider: e.target.value})}
-            >
-                <option value="google">Google Workspace (Apps Script / Sheets)</option>
-                <option value="aws">AWS (API Gateway)</option>
-                <option value="firebase">Firebase (Realtime Database)</option>
-                <option value="custom">Custom Webhook / REST API</option>
-            </select>
+                                <div className="flex items-center gap-1 mb-1">
+                                    <label className="text-[9px] font-bold text-slate-500 uppercase">Target Platform</label>
+                                    <div className="tooltip-container"><span className="tooltip-icon w-3 h-3 text-[8px]">?</span><span className="tooltip-text font-normal text-xs normal-case">Pilih jenis server backend yang akan menerima data ini.</span></div>
+                                </div>
+                                <select 
+                                    className="w-full border p-2 rounded mb-3 text-sm bg-slate-50 focus:border-blue-500 outline-none font-bold text-navy-800"
+                                    value={dbConfig.provider} 
+                                    onChange={e=>setDbConfig({...dbConfig, provider: e.target.value})}
+                                >
+                                    <option value="google">Google Workspace (Apps Script / Sheets)</option>
+                                    <option value="aws">AWS (API Gateway)</option>
+                                    <option value="firebase">Firebase (Realtime Database)</option>
+                                    <option value="custom">Custom Webhook / REST API</option>
+                                </select>
 
-            <label className="text-[9px] font-bold text-slate-500 uppercase block mb-1">
-                {dbConfig.provider === 'firebase' ? 'Database URL' : 'API Endpoint URL'}
-            </label>
-            <input 
-                type="url" 
-                placeholder="https://..." 
-                className="w-full border p-2 rounded mb-3 text-xs bg-white focus:border-blue-500 outline-none" 
-                value={dbConfig.endpoint} 
-                onChange={e=>setDbConfig({...dbConfig, endpoint: e.target.value})} 
-            />
+                                <div className="flex items-center gap-1 mb-1">
+                                    <label className="text-[9px] font-bold text-slate-500 uppercase">
+                                        {dbConfig.provider === 'firebase' ? 'Database URL' : 'API Endpoint URL'}
+                                    </label>
+                                    <div className="tooltip-container"><span className="tooltip-icon w-3 h-3 text-[8px]">?</span><span className="tooltip-text font-normal text-xs normal-case">Masukkan alamat URL web/API yang bertugas menerima tembakan data (Contoh: https://script.google.com/macros/...).</span></div>
+                                </div>
+                                <input 
+                                    type="url" 
+                                    placeholder="https://..." 
+                                    className="w-full border p-2 rounded mb-3 text-xs bg-white focus:border-blue-500 outline-none" 
+                                    value={dbConfig.endpoint} 
+                                    onChange={e=>setDbConfig({...dbConfig, endpoint: e.target.value})} 
+                                />
 
-            {dbConfig.provider === 'firebase' && (
-                <>
-                    <label className="text-[9px] font-bold text-slate-500 uppercase block mb-1">Collection / Node Name</label>
-                    <input type="text" className="w-full border p-2 rounded mb-3 text-xs bg-white focus:border-blue-500 outline-none" 
-                        value={dbConfig.collection} onChange={e=>setDbConfig({...dbConfig, collection: e.target.value})} />
-                </>
-            )}
+                                {dbConfig.provider === 'firebase' && (
+                                    <>
+                                        <div className="flex items-center gap-1 mb-1">
+                                            <label className="text-[9px] font-bold text-slate-500 uppercase">Collection / Node Name</label>
+                                            <div className="tooltip-container"><span className="tooltip-icon w-3 h-3 text-[8px]">?</span><span className="tooltip-text font-normal text-xs normal-case">Nama tabel/folder di dalam database Firebase tempat data akan disimpan.</span></div>
+                                        </div>
+                                        <input type="text" className="w-full border p-2 rounded mb-3 text-xs bg-white focus:border-blue-500 outline-none" 
+                                            value={dbConfig.collection} onChange={e=>setDbConfig({...dbConfig, collection: e.target.value})} />
+                                    </>
+                                )}
 
-            {dbConfig.provider !== 'google' && (
-                <>
-                    <label className="text-[9px] font-bold text-slate-500 uppercase block mb-1">
-                        {dbConfig.provider === 'aws' ? 'x-api-key (Optional)' : 'Auth Token / Secret Key (Optional)'}
-                    </label>
-                    <input 
-                        type="password" 
-                        placeholder="Enter token..." 
-                        className="w-full border p-2 rounded mb-4 text-xs bg-white focus:border-blue-500 outline-none font-mono" 
-                        value={dbConfig.apiKey} 
-                        onChange={e=>setDbConfig({...dbConfig, apiKey: e.target.value})} 
-                    />
-                </>
-            )}
+                                {dbConfig.provider !== 'google' && (
+                                    <>
+                                        <div className="flex items-center gap-1 mb-1">
+                                            <label className="text-[9px] font-bold text-slate-500 uppercase">
+                                                {dbConfig.provider === 'aws' ? 'x-api-key (Optional)' : 'Auth Token / Secret Key (Optional)'}
+                                            </label>
+                                            <div className="tooltip-container"><span className="tooltip-icon w-3 h-3 text-[8px]">?</span><span className="tooltip-text font-normal text-xs normal-case">Password atau Token rahasia jika API Anda diproteksi. Kosongkan jika API bersifat publik.</span></div>
+                                        </div>
+                                        <input 
+                                            type="password" 
+                                            placeholder="Enter token..." 
+                                            className="w-full border p-2 rounded mb-4 text-xs bg-white focus:border-blue-500 outline-none font-mono" 
+                                            value={dbConfig.apiKey} 
+                                            onChange={e=>setDbConfig({...dbConfig, apiKey: e.target.value})} 
+                                        />
+                                    </>
+                                )}
 
-            <div className="flex justify-end gap-2 mt-4 pt-4 border-t border-slate-100">
-                <button 
-                    onClick={sendToServer} 
-                    disabled={isSending}
-                    className={`w-full py-2.5 text-sm text-white rounded font-bold transition-colors shadow-sm flex items-center justify-center gap-2 ${isSending ? 'bg-slate-400' : 'bg-navy-900 hover:bg-navy-800'}`}>
-                    {isSending ? 'Transmitting Data...' : 'Transmit JSON Payload'}
-                </button>
+                                <div className="flex justify-end gap-2 mt-4 pt-4 border-t border-slate-100">
+                                    <button 
+                                        onClick={sendToServer} 
+                                        disabled={isSending}
+                                        className={`w-full py-2.5 text-sm text-white rounded font-bold transition-colors shadow-sm flex items-center justify-center gap-2 ${isSending ? 'bg-slate-400' : 'bg-navy-900 hover:bg-navy-800'}`}>
+                                        {isSending ? 'Transmitting Data...' : 'Transmit JSON Payload'}
+                                    </button>
+                                </div>
+                            </div>
                         </div>
-                     </div>
-                </div>
-                )}
+                    )}
 
                     {/* LEFT SIDEBAR (INPUTS) */}
                     {/* UBAH BARIS INI (Tambahkan print:hidden) */}
@@ -1151,6 +1280,49 @@ const sendToServer = async () => {
                                     </div>
                                 ))}
                             </Accordion>
+
+                           {/* 10. SCENARIO SIMULATION (WHAT-IF) */}
+                         <Accordion title="Scenario Simulation" icon="🎛️" isOpen={activeSection === 'sim'} onClick={() => setActiveSection(activeSection === 'sim' ? '' : 'sim')}>
+                             <div className="p-2 bg-purple-50 rounded mb-4 text-[10px] text-purple-800 border border-purple-200">
+                                 <strong>Interactive Mode:</strong> Geser slider untuk melihat proyeksi dampak terhadap makroekonomi (Di Laporan Kanan).
+                             </div>
+
+                             <div className="mb-4">
+                                 <div className="flex justify-between items-end mb-1">
+                                     <div className="flex items-center gap-1">
+                                         <label className="text-[9px] font-bold text-slate-500 uppercase">Public Funding (APBD/APBN)</label>
+                                         <div className="tooltip-container"><span className="tooltip-icon w-3 h-3 text-[8px]">?</span><span className="tooltip-text font-normal text-xs normal-case">Public Funding Simulation: This feature simulates the macroeconomic impact of increasing or decreasing public investment and government budget allocations from central or regional authorities. It estimates how changes in public spending may influence regional output, employment levels, and overall economic activity through multiplier effects and sectoral linkages.</span></div>
+                                     </div>
+                                     <span className={`text-[9px] font-bold ${sim.fund >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{sim.fund > 0 ? '+' : ''}{sim.fund}%</span>
+                                 </div>
+                                 <input type="range" min="-50" max="50" value={sim.fund} onChange={e=>setSim({...sim, fund: parseInt(e.target.value)})} className="w-full accent-purple-600 cursor-pointer" />
+                             </div>
+
+                             <div className="mb-4">
+                                 <div className="flex justify-between items-end mb-1">
+                                     <div className="flex items-center gap-1">
+                                         <label className="text-[9px] font-bold text-slate-500 uppercase">Global Export Price</label>
+                                         <div className="tooltip-container"><span className="tooltip-icon w-3 h-3 text-[8px]">?</span><span className="tooltip-text font-normal text-xs normal-case">Global Export Price Simulation: This feature simulates the economic impact of rising or falling international prices of priority export commodities. It assesses how global market fluctuations may affect export earnings, regional income, sector performance, and broader economic stability.</span></div>
+                                     </div>
+                                     <span className={`text-[9px] font-bold ${sim.price >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{sim.price > 0 ? '+' : ''}{sim.price}%</span>
+                                 </div>
+                                 <input type="range" min="-50" max="50" value={sim.price} onChange={e=>setSim({...sim, price: parseInt(e.target.value)})} className="w-full accent-blue-600 cursor-pointer" />
+                             </div>
+
+                             <div className="mb-2">
+                                 <div className="flex justify-between items-end mb-1">
+                                     <div className="flex items-center gap-1">
+                                         <label className="text-[9px] font-bold text-slate-500 uppercase">Climate Risk (Bencana)</label>
+                                         <div className="tooltip-container"><span className="tooltip-icon w-3 h-3 text-[8px]">?</span><span className="tooltip-text font-normal text-xs normal-case">Climate Risk Simulation: This feature simulates the potential severity of economic disruption caused by extreme weather events or harvest failure. It estimates possible impacts such as layoffs, export contraction, production decline, and overall economic vulnerability under adverse climate conditions.</span></div>
+                                     </div>
+                                     <span className={`text-[9px] font-bold ${sim.climate <= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{sim.climate > 0 ? '+' : ''}{sim.climate}%</span>
+                                 </div>
+                                 <input type="range" min="-50" max="50" value={sim.climate} onChange={e=>setSim({...sim, climate: parseInt(e.target.value)})} className="w-full accent-red-500 cursor-pointer" />
+                             </div>
+                             <div className="text-right">
+                                 <button onClick={()=>setSim({fund:0, climate:0, price:0})} className="text-[9px] text-slate-400 hover:text-slate-700 underline">Reset to Baseline</button>
+                             </div>
+                         </Accordion>
 
                         </div>
                     </div>
@@ -1586,7 +1758,76 @@ const sendToServer = async () => {
                                         </table>
                                     </div>
                                 </div>
-                            )}
+
+                                 )}
+
+                                 {/* WHAT-IF SCENARIO DASHBOARD */}
+                         {(sectors.length > 0) && (
+                             <div className="mb-12 page-break">
+                                 <h3 className="section-title text-xl font-bold text-navy-900 mb-6 flex items-center gap-3">
+                                     <span className="w-8 h-1 bg-purple-500 block"></span>What-If Macro Simulation
+                                 </h3>
+
+                                 {/* Parameter Badges */}
+                                 <div className="flex gap-3 mb-6 bg-slate-50 p-3 rounded-lg border border-slate-200">
+                                     <span className="text-[10px] font-bold uppercase text-slate-500">Scenario Applied:</span>
+                                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${sim.fund !== 0 ? 'bg-purple-100 text-purple-700' : 'bg-slate-200 text-slate-400'}`}>Funding: {sim.fund}%</span>
+                                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${sim.price !== 0 ? 'bg-blue-100 text-blue-700' : 'bg-slate-200 text-slate-400'}`}>Price: {sim.price}%</span>
+                                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${sim.climate !== 0 ? 'bg-red-100 text-red-700' : 'bg-slate-200 text-slate-400'}`}>Climate Risk: {sim.climate}%</span>
+                                 </div>
+
+                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 page-break-avoid">
+                                     {/* Chart Box */}
+                                     <div className="col-span-1 bg-white border border-slate-200 p-4 rounded-xl shadow-sm flex flex-col">
+                                         <h4 className="text-[10px] uppercase font-bold text-slate-400 mb-3 text-center">Impact Deviation</h4>
+                                         <div className="flex-1 min-h-[150px]"><canvas ref={simRef}></canvas></div>
+                                     </div>
+
+                                     {/* Result Cards */}
+                                     <div className="col-span-2 grid grid-cols-2 gap-4">
+                                         {/* Export Value */}
+                                         <div className="bg-white border border-slate-200 p-4 rounded-xl shadow-sm relative overflow-hidden">
+                                             <div className="text-[9px] uppercase font-bold text-slate-500 mb-2">Total Export Projected</div>
+                                             <div className="flex items-baseline gap-2 mb-1">
+                                                 <span className="text-2xl font-bold text-navy-800">{formatUSD(simResults.projExp)}</span>
+                                                 <span className={`text-xs font-bold ${simResults.expDelta >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                                                     {simResults.expDelta > 0 ? '▲' : simResults.expDelta < 0 ? '▼' : '-'} {Math.abs(simResults.expDelta).toFixed(1)}%
+                                                 </span>
+                                             </div>
+                                             <div className="text-[9px] text-slate-400">Baseline: {formatUSD(simResults.baseExp)}</div>
+                                         </div>
+
+                                         {/* Employment */}
+                                         <div className="bg-white border border-slate-200 p-4 rounded-xl shadow-sm relative overflow-hidden">
+                                             <div className="text-[9px] uppercase font-bold text-slate-500 mb-2">Total Employment</div>
+                                             <div className="flex items-baseline gap-2 mb-1">
+                                                 <span className="text-2xl font-bold text-navy-800">{new Intl.NumberFormat('id-ID').format(simResults.projWork)}</span>
+                                                 <span className={`text-xs font-bold ${simResults.workDelta >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                                                     {simResults.workDelta > 0 ? '▲' : simResults.workDelta < 0 ? '▼' : '-'} {Math.abs(simResults.workDelta).toFixed(1)}%
+                                                 </span>
+                                             </div>
+                                             <div className="text-[9px] text-slate-400">Baseline: {new Intl.NumberFormat('id-ID').format(simResults.baseWork)} Jiwa</div>
+                                         </div>
+
+                                         {/* Gini Impact (Full Width) */}
+                                         <div className={`col-span-2 p-4 rounded-xl border shadow-sm flex items-center justify-between ${simResults.giniDelta < 0 ? 'bg-emerald-50 border-emerald-200' : simResults.giniDelta > 0 ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-200'}`}>
+                                             <div>
+                                                 <div className="text-[9px] uppercase font-bold text-slate-500 mb-1">Gini Ratio Projection</div>
+                                                 <div className={`text-xl font-bold ${simResults.giniDelta < 0 ? 'text-emerald-700' : simResults.giniDelta > 0 ? 'text-red-700' : 'text-slate-700'}`}>
+                                                     {simResults.projGini > 0 ? '+' : ''}{simResults.projGini.toFixed(4)}
+                                                 </div>
+                                             </div>
+                                             <div className="text-right">
+                                                 <div className={`text-sm font-bold ${simResults.giniDelta < 0 ? 'text-emerald-600' : simResults.giniDelta > 0 ? 'text-red-500' : 'text-slate-500'}`}>
+                                                     {simResults.giniDelta > 0 ? 'Ketimpangan Memburuk ⚠️' : simResults.giniDelta < 0 ? 'Ketimpangan Membaik ✅' : 'Stagnan'}
+                                                 </div>
+                                                 <div className="text-[9px] text-slate-400 mt-1">Deviasi: {simResults.giniDelta > 0 ? '+' : ''}{simResults.giniDelta.toFixed(4)} dari Baseline</div>
+                                             </div>
+                                         </div>
+                                     </div>
+                                 </div>
+                             </div>
+                         )}
                             
                             {(signer.name || signer.title) && (
                                 <div className="mt-20 flex justify-end page-break-avoid">
