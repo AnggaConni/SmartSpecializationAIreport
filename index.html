@@ -319,13 +319,9 @@
             const handleLogoUpload = (e) => {
             const file = e.target.files[0];
             if (file) {
-        // UBAH: Gunakan FileReader agar gambar menjadi format Base64 (String)
-        // Dengan cara ini, gambar akan ikut tersimpan permanen di dalam file JSON.
-            const reader = new FileReader();
-            reader.onloadend = () => {
-            setLogo(reader.result); 
-            };
-            reader.readAsDataURL(file);
+             if (logo) URL.revokeObjectURL(logo); // Bersihkan memori dari logo sebelumnya
+                const imageUrl = URL.createObjectURL(file);
+                setLogo(imageUrl);
             }
             };
             
@@ -719,11 +715,11 @@ const loadFromJSON = (e) => {
 };
 
             // --- FUNGSI MODULAR FETCH ("BUNGLON") ---
-                    const sendToServer = async () => {
-                    if (!dbConfig.endpoint) {
-                    alert("⚠️ URL Endpoint tidak boleh kosong!");
-                    return;
-                    }
+const sendToServer = async () => {
+    if (!dbConfig.endpoint) {
+        alert("⚠️ URL Endpoint tidak boleh kosong!");
+        return;
+    }
 
     setIsSending(true);
     // Payload murni dari state
@@ -977,7 +973,7 @@ useEffect(() => {
 
 }, [processedData, governance, environment, simResults]); // Dependency array lengkap
 
-           const handleAI = async () => {
+            const handleAI = async () => {
                 if(!apiKey) return setShowKeyModal(true);
                 setAiLoading(true);
 
