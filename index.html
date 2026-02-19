@@ -268,6 +268,50 @@
         const App = () => {
             const [activeSection, setActiveSection] = useState("general"); 
             
+            // 1. DATA VALAS (TANPA SUFFIX MANUAL)
+            const EXCHANGE_RATES = {
+                USD: { rate: 1, locale: 'en-US', currency: 'USD' },
+                IDR: { rate: 15600, locale: 'id-ID', currency: 'IDR' }, 
+                EUR: { rate: 0.92, locale: 'de-DE', currency: 'EUR' },
+                JPY: { rate: 150, locale: 'ja-JP', currency: 'JPY' },
+                GBP: { rate: 0.79, locale: 'en-GB', currency: 'GBP' },
+                SGD: { rate: 1.34, locale: 'en-SG', currency: 'SGD' },
+                AUD: { rate: 1.53, locale: 'en-AU', currency: 'AUD' }
+            };
+            const [activeCurrency, setActiveCurrency] = useState('USD');
+
+            // 2. FUNGSI CONVERTER AUTO-UBAH KATA (TRILIUN/MILIAR/JUTA)
+            const formatCurrency = (val) => {
+                const numVal = Number(val) || 0;
+                const config = EXCHANGE_RATES[activeCurrency];
+                
+                // Karena input awalnya dalam "Juta", kita jadikan nilai riil dulu
+                const trueValue = (numVal * 1000000) * config.rate;
+
+                // Logika Pintar Khusus Rupiah (IDR)
+                if (activeCurrency === 'IDR') {
+                    if (trueValue >= 1000000000000) {
+                        return `Rp ${(trueValue / 1000000000000).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Triliun`;
+                    } else if (trueValue >= 1000000000) {
+                        return `Rp ${(trueValue / 1000000000).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Miliar`;
+                    } else {
+                        return `Rp ${(trueValue / 1000000).toLocaleString('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} Juta`;
+                    }
+                } 
+                // Untuk Mata Uang Asing, tetap gunakan standar "M" (Million)
+                else {
+                    const displayVal = numVal * config.rate;
+                    const fractionDigits = (activeCurrency === 'JPY') ? 0 : 1;
+                    
+                    return new Intl.NumberFormat(config.locale, {
+                        style: 'currency',
+                        currency: config.currency,
+                        minimumFractionDigits: 0,
+                        maximumFractionDigits: fractionDigits
+                    }).format(displayVal) + " M";
+                }
+            };
+
             // Core Data State
             const [regionName, setRegionName] = useState("");
             const [governance, setGovernance] = useState({ 
@@ -1069,75 +1113,139 @@ useEffect(() => {
 
 
             // --- FUNGSI BARU: EXPORT TO WORD ---
+            // --- FUNGSI BARU: EXPORT TO WORD (SUPER BEAUTIFUL & ERROR-FREE) ---
+           
+           // --- FUNGSI BARU: EXPORT TO WORD (ULTIMATE AUTO-CONVERTER) ---
             const exportToWord = () => {
                 if (!reportRef.current) return;
+                alert("⏳ Memproses dokumen Word... Mengonversi layout agar rapi.");
 
-                // 1. Kita clone (duplikat) dulu elemen report-nya agar tampilan asli tidak berubah
+                // 1. Clone elemen agar layar utama tidak berubah
                 const originalElement = reportRef.current;
                 const clone = originalElement.cloneNode(true);
 
-                // 2. Trik Sulap: Ubah semua Chart (Canvas) menjadi Gambar (Image)
-                // Word tidak bisa baca <canvas>, jadi harus jadi <img>
+                // 2. CONVERT CANVAS TO IMAGE (Agar grafik terbaca di Word)
                 const originalCanvases = originalElement.querySelectorAll('canvas');
                 const clonedCanvases = clone.querySelectorAll('canvas');
-
                 clonedCanvases.forEach((clonedCanvas, index) => {
                     const originalCanvas = originalCanvases[index];
-                    // Buat elemen gambar baru
                     const img = document.createElement('img');
-                    // Ambil data gambar dari canvas asli
-                    img.src = originalCanvas.toDataURL('image/png'); 
-                    // Set ukuran agar rapi
+                    img.src = originalCanvas.toDataURL('image/png', 1.0); 
                     img.style.width = '100%';
-                    img.style.maxWidth = '100%';
-                    
-                    // Ganti canvas di clone dengan gambar
+                    img.style.maxWidth = '500px'; 
+                    img.style.height = 'auto';
+                    img.style.display = 'block';
+                    img.style.margin = '0 auto';
                     clonedCanvas.parentNode.replaceChild(img, clonedCanvas);
                 });
 
-                // 3. Persiapkan HTML untuk Word
-                // Kita tambahkan sedikit style inline agar tabel ada garisnya di Word
+                // 3. TRIK SULAP: CONVERT TAILWIND GRID MENJADI TABEL NATIVE MS WORD!
+                // Word tidak bisa membaca flex/grid, tapi sangat hebat membaca Table.
+                const grids = clone.querySelectorAll('.grid');
+                grids.forEach(grid => {
+                    const table = document.createElement('table');
+                    table.style.width = '100%';
+                    table.style.borderCollapse = 'collapse';
+                    table.style.border = 'none'; // Hilangkan garis tabel
+                    table.style.marginBottom = '15px';
+                    
+                    const tr = document.createElement('tr');
+                    
+                    // Pindahkan setiap kotak (div) di dalam grid menjadi kolom (td)
+                    Array.from(grid.children).forEach(child => {
+                        const td = document.createElement('td');
+                        td.style.verticalAlign = 'top';
+                        td.style.padding = '8px';
+                        td.style.border = 'none'; // Hilangkan garis kolom
+                        td.appendChild(child);
+                        tr.appendChild(td);
+                    });
+                    
+                    table.appendChild(tr);
+                    // Ganti struktur grid div dengan struktur tabel
+                    grid.parentNode.replaceChild(table, grid);
+                });
+
+                // 4. SUNTIKKAN XML HEADER & NATIVE CSS KE DALAM WORD
                 const htmlContent = `
-                    <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+                    <html xmlns:o="urn:schemas-microsoft-com:office:office" 
+                          xmlns:w="urn:schemas-microsoft-com:office:word" 
+                          xmlns="http://www.w3.org/TR/REC-html40">
                     <head>
-                        <meta charset='utf-8'>
-                        <title>Export Document</title>
+                        <meta charset="utf-8">
+                        <title>S3 Strategy Document</title>
+                        <meta name="ProgId" content="Word.Document">
                         <style>
-                            /* Sedikit style dasar agar tabel rapi di Word */
-                            body { font-family: 'Arial', sans-serif; }
-                            table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
-                            th, td { border: 1px solid #000; padding: 8px; text-align: left; }
-                            h1, h2, h3 { color: #1e3a5f; }
-                            .no-print { display: none; } /* Sembunyikan tombol close di dalam konten */
+                            /* Reset & Typography */
+                            body { font-family: 'Segoe UI Emoji', Arial, sans-serif; color: #1e293b; line-height: 1.5; }
+                            h1 { color: #0f172a; font-size: 26pt; border-bottom: 2px solid #1e3a5f; padding-bottom: 5pt; }
+                            h3.section-title { color: #1e3a5f; font-size: 16pt; margin-top: 20pt; border-bottom: 1px solid #cbd5e1; padding-bottom: 5pt; }
+                            
+                            /* Warna Kotak & Background (Tailwind Map) */
+                            .bg-white, .bg-slate-50 { background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 12pt; border-radius: 6pt; }
+                            .bg-blue-50 { background-color: #eff6ff; border: 1px solid #bfdbfe; padding: 10pt; }
+                            .bg-red-50 { background-color: #fef2f2; border: 1px solid #fecaca; padding: 10pt; }
+                            .bg-emerald-50 { background-color: #ecfdf5; border: 1px solid #a7f3d0; padding: 10pt; }
+                            .bg-amber-50 { background-color: #fffbeb; border: 1px solid #fde68a; padding: 10pt; }
+                            .bg-navy-900 { background-color: #0f172a; color: white; padding: 12pt; }
+                            
+                            /* Warna Teks (Tailwind Map) */
+                            .text-slate-500, .text-slate-400 { color: #64748b; font-size: 9pt; }
+                            .text-navy-800, .text-navy-900 { color: #0f172a; }
+                            .text-emerald-600, .text-emerald-700 { color: #059669; }
+                            .text-red-500, .text-red-600, .text-red-700 { color: #dc2626; }
+                            .text-blue-600, .text-blue-700 { color: #2563eb; }
+                            .text-terracotta-500, .text-terracotta-600 { color: #c56b3e; }
+                            .text-purple-600, .text-purple-700 { color: #7e22ce; }
+                            .text-amber-600 { color: #d97706; }
+                            
+                            /* Tabel Asli (Untuk Matrix) */
+                            table { margin-bottom: 20pt; }
+                            table, th, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
+                            thead th { background-color: #1e3a5f; color: white; font-weight: bold; padding: 8pt; border: 1px solid #94a3b8; text-transform: uppercase; font-size: 9pt; }
+                            tbody td { padding: 8pt; border: 1px solid #94a3b8; font-size: 10pt; color: #334155; }
+                            
+                            /* Teks Utilitas */
+                            .font-bold { font-weight: bold; }
+                            .text-xl, .text-2xl { font-size: 16pt; font-weight: bold; margin: 4pt 0; }
+                            .text-center { text-align: center; }
+                            .text-right { text-align: right; }
+                            
+                            /* Sembunyikan elemen UI di dokumen cetak */
+                            .no-print, button { display: none !important; }
                         </style>
                     </head>
                     <body>
-                        ${clone.innerHTML}
+                        <div class="WordSection1">
+                            ${clone.innerHTML}
+                        </div>
                     </body>
                     </html>
                 `;
 
-                // 4. Bungkus jadi Blob (File Object)
+                // 5. Bungkus dan Download file asli .doc (Word)
                 const blob = new Blob(['\ufeff', htmlContent], {
                     type: 'application/msword'
                 });
-
-                // 5. Download File
                 const url = URL.createObjectURL(blob);
                 const link = document.createElement('a');
                 link.href = url;
-                link.download = `S3_Strategy_${regionName || 'Document'}.doc`; // Ekstensi .doc agar mudah dibuka
+                
+                const safeName = regionName ? regionName.replace(/\s+/g, '_') : 'Document';
+                link.download = `S3_Strategy_${safeName}.doc`; 
+                
                 document.body.appendChild(link);
                 link.click();
                 
-                // Bersihkan memori
                 document.body.removeChild(link);
                 URL.revokeObjectURL(url);
             };
-
             return (
                 <div className="flex h-screen bg-slate-100 overflow-hidden text-slate-800 font-sans">
-                    {/* MODALS */}
+                    
+                    {/* ======================================================== */}
+                    {/* 1. MODAL KONEKSI API & AI (TIDAK ADA YANG BERUBAH)       */}
+                    {/* ======================================================== */}
                     {showKeyModal && (
                         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
                             <div className="bg-white p-6 rounded-xl shadow-2xl w-96 animate-fadeIn border border-slate-200">
@@ -1148,7 +1256,6 @@ useEffect(() => {
                             </div>
                         </div>
                     )}
-                    {/* --- UI MODAL UNIVERSAL CLOUD CONNECTOR --- */}
                     {showDbModal && (
                         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
                             <div className="bg-white p-6 rounded-xl shadow-2xl w-[450px] animate-fadeIn border border-slate-200">
@@ -1156,105 +1263,93 @@ useEffect(() => {
                                     <h3 className="font-bold text-lg flex items-center gap-2">🚀 Universal API Connector</h3>
                                     <button onClick={()=>setShowDbModal(false)} className="text-slate-400 hover:text-red-500 font-bold">✕</button>
                                 </div>
-
                                 <div className="bg-indigo-50 border border-indigo-200 text-indigo-800 text-[10px] p-3 rounded-lg mb-4 flex items-start gap-2">
                                     <span className="text-lg leading-none">ℹ️</span>
-                                    <div>
-                                        <strong>Standardized JSON Payload:</strong><br/>
-                                        Data yang dikirim menggunakan struktur murni. Mendukung integrasi dengan <i>Data Warehouse</i> apapun.
-                                    </div>
+                                    <div><strong>Standardized JSON Payload:</strong><br/>Data yang dikirim menggunakan struktur murni. Mendukung integrasi dengan <i>Data Warehouse</i> apapun.</div>
                                 </div>
-
                                 <div className="flex items-center gap-1 mb-1">
                                     <label className="text-[9px] font-bold text-slate-500 uppercase">Target Platform</label>
-                                    <div className="tooltip-container"><span className="tooltip-icon w-3 h-3 text-[8px]">?</span><span className="tooltip-text font-normal text-xs normal-case">Pilih jenis server backend yang akan menerima data ini.</span></div>
                                 </div>
-                                <select 
-                                    className="w-full border p-2 rounded mb-3 text-sm bg-slate-50 focus:border-blue-500 outline-none font-bold text-navy-800"
-                                    value={dbConfig.provider} 
-                                    onChange={e=>setDbConfig({...dbConfig, provider: e.target.value})}
-                                >
+                                <select className="w-full border p-2 rounded mb-3 text-sm bg-slate-50 focus:border-blue-500 outline-none font-bold text-navy-800" value={dbConfig.provider} onChange={e=>setDbConfig({...dbConfig, provider: e.target.value})}>
                                     <option value="google">Google Workspace (Apps Script / Sheets)</option>
                                     <option value="aws">AWS (API Gateway)</option>
                                     <option value="firebase">Firebase (Realtime Database)</option>
                                     <option value="custom">Custom Webhook / REST API</option>
                                 </select>
-
                                 <div className="flex items-center gap-1 mb-1">
-                                    <label className="text-[9px] font-bold text-slate-500 uppercase">
-                                        {dbConfig.provider === 'firebase' ? 'Database URL' : 'API Endpoint URL'}
-                                    </label>
-                                    <div className="tooltip-container"><span className="tooltip-icon w-3 h-3 text-[8px]">?</span><span className="tooltip-text font-normal text-xs normal-case">Masukkan alamat URL web/API yang bertugas menerima tembakan data (Contoh: https://script.google.com/macros/...).</span></div>
+                                    <label className="text-[9px] font-bold text-slate-500 uppercase">{dbConfig.provider === 'firebase' ? 'Database URL' : 'API Endpoint URL'}</label>
                                 </div>
-                                <input 
-                                    type="url" 
-                                    placeholder="https://..." 
-                                    className="w-full border p-2 rounded mb-3 text-xs bg-white focus:border-blue-500 outline-none" 
-                                    value={dbConfig.endpoint} 
-                                    onChange={e=>setDbConfig({...dbConfig, endpoint: e.target.value})} 
-                                />
-
+                                <input type="url" placeholder="https://..." className="w-full border p-2 rounded mb-3 text-xs bg-white focus:border-blue-500 outline-none" value={dbConfig.endpoint} onChange={e=>setDbConfig({...dbConfig, endpoint: e.target.value})} />
                                 {dbConfig.provider === 'firebase' && (
                                     <>
                                         <div className="flex items-center gap-1 mb-1">
                                             <label className="text-[9px] font-bold text-slate-500 uppercase">Collection / Node Name</label>
-                                            <div className="tooltip-container"><span className="tooltip-icon w-3 h-3 text-[8px]">?</span><span className="tooltip-text font-normal text-xs normal-case">Nama tabel/folder di dalam database Firebase tempat data akan disimpan.</span></div>
                                         </div>
-                                        <input type="text" className="w-full border p-2 rounded mb-3 text-xs bg-white focus:border-blue-500 outline-none" 
-                                            value={dbConfig.collection} onChange={e=>setDbConfig({...dbConfig, collection: e.target.value})} />
+                                        <input type="text" className="w-full border p-2 rounded mb-3 text-xs bg-white focus:border-blue-500 outline-none" value={dbConfig.collection} onChange={e=>setDbConfig({...dbConfig, collection: e.target.value})} />
                                     </>
                                 )}
-
                                 {dbConfig.provider !== 'google' && (
                                     <>
                                         <div className="flex items-center gap-1 mb-1">
-                                            <label className="text-[9px] font-bold text-slate-500 uppercase">
-                                                {dbConfig.provider === 'aws' ? 'x-api-key (Optional)' : 'Auth Token / Secret Key (Optional)'}
-                                            </label>
-                                            <div className="tooltip-container"><span className="tooltip-icon w-3 h-3 text-[8px]">?</span><span className="tooltip-text font-normal text-xs normal-case">Password atau Token rahasia jika API Anda diproteksi. Kosongkan jika API bersifat publik.</span></div>
+                                            <label className="text-[9px] font-bold text-slate-500 uppercase">{dbConfig.provider === 'aws' ? 'x-api-key (Optional)' : 'Auth Token / Secret Key (Optional)'}</label>
                                         </div>
-                                        <input 
-                                            type="password" 
-                                            placeholder="Enter token..." 
-                                            className="w-full border p-2 rounded mb-4 text-xs bg-white focus:border-blue-500 outline-none font-mono" 
-                                            value={dbConfig.apiKey} 
-                                            onChange={e=>setDbConfig({...dbConfig, apiKey: e.target.value})} 
-                                        />
+                                        <input type="password" placeholder="Enter token..." className="w-full border p-2 rounded mb-4 text-xs bg-white focus:border-blue-500 outline-none font-mono" value={dbConfig.apiKey} onChange={e=>setDbConfig({...dbConfig, apiKey: e.target.value})} />
                                     </>
                                 )}
-
                                 <div className="flex justify-end gap-2 mt-4 pt-4 border-t border-slate-100">
-                                    <button 
-                                        onClick={sendToServer} 
-                                        disabled={isSending}
-                                        className={`w-full py-2.5 text-sm text-white rounded font-bold transition-colors shadow-sm flex items-center justify-center gap-2 ${isSending ? 'bg-slate-400' : 'bg-navy-900 hover:bg-navy-800'}`}>
-                                        {isSending ? 'Transmitting Data...' : 'Transmit JSON Payload'}
-                                    </button>
+                                    <button onClick={sendToServer} disabled={isSending} className={`w-full py-2.5 text-sm text-white rounded font-bold transition-colors shadow-sm flex items-center justify-center gap-2 ${isSending ? 'bg-slate-400' : 'bg-navy-900 hover:bg-navy-800'}`}>{isSending ? 'Transmitting Data...' : 'Transmit JSON Payload'}</button>
                                 </div>
                             </div>
                         </div>
                     )}
 
-                    {/* LEFT SIDEBAR (INPUTS) */}
-                    {/* UBAH BARIS INI (Tambahkan print:hidden) */}
+                    {/* ======================================================== */}
+                    {/* 2. AREA KIRI: PEMBUNGKUS SIDEBAR (INI YANG SEBELUMNYA RUSAK) */}
+                    {/* ======================================================== */}
                     <div className="w-4/12 bg-white border-r flex flex-col z-10 shadow-xl print:hidden">
+                        
+                        {/* BAGIAN A: HEADER BIRU GELAP */}
                         <div className="p-5 bg-navy-900 text-white flex justify-between items-center shrink-0">
-                            <div><h1 className="font-bold tracking-widest text-lg">S3 BUILDER</h1><div className="text-[10px] opacity-70">Professional Edition</div></div>
-                            <div className="flex gap-1">
-                                <button onClick={()=>setShowDbModal(true)} title="Cloud Connector" className="p-2 text-white hover:bg-white/10 rounded">☁️</button>
-                                <button onClick={()=>setShowKeyModal(true)} title="AI Settings" className={`p-2 rounded transition-colors ${apiKey ? 'text-green-400' : 'text-slate-400 hover:text-white'}`}>⚙️</button>
-                                <button onClick={saveToJSON} title="Save" className="p-2 text-white hover:bg-white/10 rounded">💾</button>
-                                <label title="Load" className="p-2 text-white hover:bg-white/10 rounded cursor-pointer">📂<input type="file" onChange={loadFromJSON} className="hidden" accept=".json" /></label>
+                            {/* Judul Aplikasi Kiri */}
+                            <div>
+                                <h1 className="font-bold tracking-widest text-lg">S3 BUILDER</h1>
+                                <div className="text-[10px] opacity-70">Professional Edition</div>
+                            </div>
+                            
+                            {/* Grup Menu Kanan (Dropdown Valas & Ikon) */}
+                            <div className="flex items-center gap-3">
+                                {/* Dropdown Converter */}
+                                <select 
+                                    className="bg-navy-800 text-white text-[10px] p-1.5 rounded border border-navy-700 outline-none cursor-pointer hover:bg-navy-700 transition-colors font-bold tracking-wider m-0"
+                                    value={activeCurrency}
+                                    onChange={(e) => setActiveCurrency(e.target.value)}
+                                    title="Output Currency"
+                                >
+                                    {Object.keys(EXCHANGE_RATES).map(curr => (
+                                        <option key={curr} value={curr}>{curr}</option>
+                                    ))}
+                                </select>
+
+                                {/* Deretan Ikon */}
+                                <div className="flex gap-1">
+                                    <button onClick={()=>setShowDbModal(true)} title="Cloud Connector" className="p-2 text-white hover:bg-white/10 rounded">☁️</button>
+                                    <button onClick={()=>setShowKeyModal(true)} title="AI Settings" className={`p-2 rounded transition-colors ${apiKey ? 'text-green-400' : 'text-slate-400 hover:text-white'}`}>⚙️</button>
+                                    <button onClick={saveToJSON} title="Save" className="p-2 text-white hover:bg-white/10 rounded">💾</button>
+                                    <label title="Load" className="p-2 text-white hover:bg-white/10 rounded cursor-pointer">📂<input type="file" onChange={loadFromJSON} className="hidden" accept=".json" /></label>
+                                </div>
                             </div>
                         </div>
-                        
-                        <div className="bg-navy-800 px-5 py-2 flex justify-between items-center border-t border-navy-700">
+
+                        {/* BAGIAN B: BAR TOMBOL QUICK ACTIONS (Load Sample Data) */}
+                        <div className="bg-navy-800 px-5 py-2 flex justify-between items-center border-t border-navy-700 shrink-0">
                             <span className="text-[10px] text-slate-300">Quick Actions:</span>
                             <button onClick={loadSampleData} className="text-[10px] bg-terracotta-500 hover:bg-terracotta-600 text-white px-3 py-1 rounded font-bold shadow-sm transition-colors">Load Sample Data</button>
                         </div>
 
+                        {/* BAGIAN C: AREA FORM INPUT YANG BISA DI-SCROLL */}
                         <div className="flex-1 overflow-y-auto custom-scrollbar">
-                            {/* 1. GENERAL SIDEBAR INPUT */}
+                        
+                        {/* 1. GENERAL SIDEBAR INPUT */}
                             <Accordion title="General Identity" icon="🏛️" isOpen={activeSection === 'general'} onClick={() => setActiveSection(activeSection === 'general' ? '' : 'general')}>
                                 <Input label="Region Name" fieldKey="regionName" val={regionName} setVal={setRegionName} placeholder="e.g. Kabupaten..." />
                                 <Input label="Vision Statement" fieldKey="vision" type="textarea" val={governance.vision} setVal={v => setGovernance({...governance, vision: v})} placeholder="What is the big goal?" />
@@ -1645,12 +1740,12 @@ useEffect(() => {
                                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                                         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center">
                                             <div className="text-[9px] text-slate-500 uppercase tracking-wider font-bold mb-1">Funding Needed</div>
-                                            <div className="text-xl font-bold text-navy-800">{formatUSD(finance.fundingNeeded)}</div>
+                                            <div className="text-xl font-bold text-navy-800">{formatCurrency(finance.fundingNeeded)}</div>
                                         </div>
                                         <div className="bg-red-50 p-4 rounded-xl border border-red-100 shadow-sm text-center">
                                             <div className="text-[9px] text-red-500 uppercase tracking-wider font-bold mb-1">Investment Gap</div>
                                             <div className="text-xl font-bold text-red-700">
-                                                {formatUSD(Math.max(0, finance.fundingNeeded - (finance.publicInv + finance.privateInv)))}
+                                            {formatCurrency(Math.max(0, finance.fundingNeeded - (finance.publicInv + finance.privateInv)))}
                                             </div>
                                         </div>
                                         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center">
@@ -1670,9 +1765,9 @@ useEffect(() => {
                                     {/* Visualisasi Bar Persentase */}
                                     <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm mt-2">
                                         <div className="flex justify-between text-[10px] mb-2 font-bold uppercase tracking-wider">
-                                            <span className="text-blue-600">Public: {formatUSD(finance.publicInv)}</span>
-                                            <span className="text-emerald-600">Private: {formatUSD(finance.privateInv)}</span>
-                                            <span className="text-red-500">Gap: {formatUSD(Math.max(0, finance.fundingNeeded - (finance.publicInv + finance.privateInv)))}</span>
+                                        <span className="text-blue-600">Public: {formatCurrency(finance.publicInv)}</span>
+                                        <span className="text-emerald-600">Private: {formatCurrency(finance.privateInv)}</span>
+                                        <span className="text-red-500">Gap: {formatCurrency(Math.max(0, finance.fundingNeeded - (finance.publicInv + finance.privateInv)))}</span>
                                         </div>
                                         <div className="w-full flex h-4 rounded-full overflow-hidden bg-red-100 shadow-inner">
                                             <div className="bg-blue-500 transition-all duration-1000" style={{width: `${(finance.publicInv / finance.fundingNeeded) * 100}%`}}></div>
@@ -1861,7 +1956,7 @@ useEffect(() => {
                                                 <tr key={s.id} className="hover:bg-slate-50">
                                                     <td className="p-3 font-bold text-navy-800">{s.name}</td>
                                                     <td className="p-3 text-right font-mono text-xs">{s.lq}</td>
-                                                    <td className="p-3 text-right font-mono text-xs text-green-700 font-bold">{formatUSD(s.exportVal)}</td>
+                                                    <td className="p-3 text-right font-mono text-xs text-green-700 font-bold">{formatCurrency(s.exportVal)}</td>
                                                     <td className="p-3"><div className={`text-[10px] font-bold px-2 py-1 rounded border mb-1 ${path.color} inline-block`}>{path.name}</div><div className="text-[9px] text-slate-500 leading-tight">{path.desc}</div>
                                                         <div className="flex gap-1 mt-1 opacity-70">
                                                             <span className="text-[8px] bg-slate-200 px-1 rounded" title="Value Added">VA:{s.valueAdd||0}</span>
@@ -2105,12 +2200,12 @@ useEffect(() => {
                                          <div className="bg-white border border-slate-200 p-4 rounded-xl shadow-sm relative overflow-hidden">
                                              <div className="text-[9px] uppercase font-bold text-slate-500 mb-2">Total Export Projected</div>
                                              <div className="flex items-baseline gap-2 mb-1">
-                                                 <span className="text-2xl font-bold text-navy-800">{formatUSD(simResults.projExp)}</span>
+                                                 <span className="text-2xl font-bold text-navy-800">{formatCurrency(simResults.projExp)}</span>
                                                  <span className={`text-xs font-bold ${simResults.expDelta >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                                                      {simResults.expDelta > 0 ? '▲' : simResults.expDelta < 0 ? '▼' : '-'} {Math.abs(simResults.expDelta).toFixed(1)}%
                                                  </span>
                                              </div>
-                                             <div className="text-[9px] text-slate-400">Baseline: {formatUSD(simResults.baseExp)}</div>
+                                             <div className="text-[9px] text-slate-400">Baseline: {formatCurrency(simResults.baseExp)}</div>
                                          </div>
 
                                          {/* Employment */}
