@@ -319,9 +319,13 @@
             const handleLogoUpload = (e) => {
             const file = e.target.files[0];
             if (file) {
-             if (logo) URL.revokeObjectURL(logo); // Bersihkan memori dari logo sebelumnya
-                const imageUrl = URL.createObjectURL(file);
-                setLogo(imageUrl);
+        // UBAH: Gunakan FileReader agar gambar menjadi format Base64 (String)
+        // Dengan cara ini, gambar akan ikut tersimpan permanen di dalam file JSON.
+            const reader = new FileReader();
+            reader.onloadend = () => {
+            setLogo(reader.result); 
+            };
+            reader.readAsDataURL(file);
             }
             };
             
@@ -660,50 +664,70 @@
             }; // <--- PENUTUP FUNGSI loadSampleData YANG BENAR ADA DI SINI
 
             const saveToJSON = () => {
-                // Terdapat penambahan: signer dan dbConfig
-                const data = { regionName, governance, finance, equity, environment, sectors, swot, stakeholders, actionPlan, kpis, customModules, customData, signer, dbConfig };
+    // 1. Kumpulkan SEMUA state yang ada (KECUALI apiKey)
+                const data = { 
+                    regionName, governance, finance, equity, environment, 
+                    sectors, swot, stakeholders, actionPlan, kpis, 
+                    signer, dbConfig, 
+                    sim, aiAnalysis, logo // <-- INI TAMBAHANNYA
+                };
+    
+    // 2. Bungkus jadi file JSON
                 const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
                 const link = document.createElement('a');
                 link.href = URL.createObjectURL(blob);
-                link.download = `S3_Strategy_${regionName.replace(/\s+/g,'_')}.json`;
+    
+    // Bikin nama file dinamis agar rapi
+                const safeName = regionName ? regionName.replace(/\s+/g,'_') : 'Untitled';
+                link.download = `S3_Strategy_${safeName}.json`;
+    
                 link.click();
-            };
-
-            const loadFromJSON = (e) => {
-                const reader = new FileReader();
-                reader.onload = (ev) => {
-                    try {
-                        const data = JSON.parse(ev.target.result);
-                        setRegionName(data.regionName || "");
-                        setGovernance(data.governance || { vision: "", timeline: "", coordIndex:0, policyCoh:0, pppReady:0, budgetAbs:0 });
-                        setFinance(data.finance || { publicInv: 0, privateInv: 0, fundingNeeded: 0, divIndex: 0, blendedReady: 0, smeSurvival: 0, accessCredit: 0, exportDiv: 0, informalityRate: 0 });
-                        // INI YANG KETINGGALAN KEMARIN (EQUITY)
-                        setEquity(data.equity || { giniImpact: 0, genderInc: 0, smePart: 0, ruralShare: 0, youthMult: 0 }); 
-                        setEnvironment(data.environment || { climateVuln: 0, carbonInt: 0, waterRisk: 0, bioRisk: 0 });
-                        setSectors(data.sectors || []);
-                        setSwot(data.swot || { s: "", w: "", o: "", t: "" });
-                        setStakeholders(data.stakeholders || []);
-                        setActionPlan(data.actionPlan || []);
-                        setKpis(data.kpis || []);
-                        setCustomModules(data.customModules || []);
-                        setCustomData(data.customData || {});
-                        // TAMBAHAN LOAD UNTUK PEJABAT & DB
-                        setSigner(data.signer || { name: "", title: "" });
-                        setDbConfig(data.dbConfig || { provider: 'google', endpoint: '', apiKey: '', collection: 's3_data' });
-                        
-                        alert("Data Loaded Successfully!");
-                    } catch (err) { alert("Invalid JSON File"); }
                 };
-                if(e.target.files[0]) reader.readAsText(e.target.files[0]);
-                e.target.value = null;
-            };
+
+                const loadFromJSON = (e) => {
+                 const reader = new FileReader();
+                    reader.onload = (ev) => {
+                    try {
+                    const data = JSON.parse(ev.target.result);
+            
+            // Core Data
+                    setRegionName(data.regionName || "");
+                    setGovernance(data.governance || { vision: "", timeline: "", coordIndex:0, policyCoh:0, pppReady:0, budgetAbs:0 });
+                    setFinance(data.finance || { publicInv: 0, privateInv: 0, fundingNeeded: 0, divIndex: 0, blendedReady: 0, smeSurvival: 0, accessCredit: 0, exportDiv: 0, informalityRate: 0 });
+                    setEquity(data.equity || { giniImpact: 0, genderInc: 0, smePart: 0, ruralShare: 0, youthMult: 0 }); 
+                    setEnvironment(data.environment || { climateVuln: 0, carbonInt: 0, waterRisk: 0, bioRisk: 0 });
+            
+            // Arrays
+                    setSectors(data.sectors || []);
+                    setSwot(data.swot || { s: "", w: "", o: "", t: "" });
+                    setStakeholders(data.stakeholders || []);
+                    setActionPlan(data.actionPlan || []);
+                    setKpis(data.kpis || []);
+            
+            // Settings & Signer
+                    setSigner(data.signer || { name: "", title: "" });
+                    setDbConfig(data.dbConfig || { provider: 'google', endpoint: '', apiKey: '', collection: 's3_data' });
+            
+            // --- TAMBAHAN BARU: Pastikan data ini di-load ---
+                    setSim(data.sim || { fund: 0, climate: 0, price: 0 });
+                    setAiAnalysis(data.aiAnalysis || ""); // Hasil generate AI yang terakhir
+                    setLogo(data.logo || null); // Logo (dalam format Base64)
+            
+                    alert("✅ Semua Data & Analisis AI Berhasil Di-load!");
+                    } catch (err) { 
+                    alert("❌ Invalid JSON File"); 
+                    }
+                    };
+                    if(e.target.files[0]) reader.readAsText(e.target.files[0]);
+                    e.target.value = null; // Reset input file
+                    };
 
             // --- FUNGSI MODULAR FETCH ("BUNGLON") ---
-const sendToServer = async () => {
-    if (!dbConfig.endpoint) {
-        alert("⚠️ URL Endpoint tidak boleh kosong!");
-        return;
-    }
+                    const sendToServer = async () => {
+                    if (!dbConfig.endpoint) {
+                    alert("⚠️ URL Endpoint tidak boleh kosong!");
+                    return;
+                    }
 
     setIsSending(true);
     // Payload murni dari state
@@ -957,77 +981,94 @@ useEffect(() => {
 
 }, [processedData, governance, environment, simResults]); // Dependency array lengkap
 
-            const handleAI = async () => {
-        if(!apiKey) return setShowKeyModal(true);
-            setAiLoading(true);
+           const handleAI = async () => {
+                if(!apiKey) return setShowKeyModal(true);
+                setAiLoading(true);
 
-    // 1. LAYER 1: DATA AWARENESS ENGINE (Kalkulasi Completeness)
-    // Mengecek berapa banyak variabel kunci yang sudah diisi oleh user
-            const vitalStats = [
-                governance.vision, governance.coordIndex, governance.pppReady,
-                finance.fundingNeeded, finance.privateInv, environment.climateVuln, 
-                equity.giniImpact, swot.s, sectors.length > 0 ? "filled" : "", actionPlan.length > 0 ? "filled" : ""
-                ];
-                const filledStats = vitalStats.filter(v => v !== "" && v !== 0 && v !== null && v !== undefined).length;
-                const dataConfidence = Math.round((filledStats / vitalStats.length) * 100);
-                
-                
-                // 2. THE MASTER PROMPT (Systemic Caution Framework)
-    const prompt = `
-    ROLE & PERSONA:
-    You are the "S3 Intelligence Engine", a Senior Regional Policy Analyst.
-    Your tone is calm, highly analytical, objective, balanced, and cautious. You exercise "Systemic Caution."
-    
-    CONTEXT (Live Data Injected):
-    [...masukkan variabel context seperti sebelumnya...]
+                // 1. Kumpulkan semua data menjadi satu Object JSON yang rapi
+                // Ini memastikan AI tidak akan bilang "Data is absent" lagi.
+                const dataPayload = {
+                    Region: regionName || "Belum didefinisikan",
+                    Vision_Statement: governance.vision || "Belum ada visi",
+                    Institutional_Capacity: {
+                        Coordination_Index: governance.coordIndex,
+                        Policy_Coherence: governance.policyCoh,
+                        PPP_Readiness: governance.pppReady,
+                        Budget_Absorption: governance.budgetAbs
+                    },
+                    Financial_Leverage: {
+                        Funding_Needed_Million_USD: finance.fundingNeeded,
+                        Public_Investment: finance.publicInv,
+                        Private_Investment: finance.privateInv
+                    },
+                    Environmental_Risks: {
+                        Climate_Vulnerability: environment.climateVuln,
+                        Carbon_Intensity: environment.carbonInt,
+                        Water_Risk: environment.waterRisk
+                    },
+                    Social_Equity_Impact: {
+                        Gini_Impact: equity.giniImpact,
+                        Rural_Share_Percentage: equity.ruralShare,
+                        SME_Participation_Percentage: equity.smePart
+                    },
+                    SWOT_Analysis: {
+                        Strengths: swot.s,
+                        Weaknesses: swot.w,
+                        Opportunities: swot.o,
+                        Threats: swot.t
+                    },
+                    Priority_Sectors: sectors.map(s => s.name).join(", "),
+                    Action_Plan_Activities: actionPlan.map(a => a.activity).join(", ")
+                };
 
-    DATA CONFIDENCE INDEX: ${dataConfidence}%
+                // 2. MASTER PROMPT BARU (No-Nonsense, Poliglot, Comprehensive)
+                const prompt = `
+                You are an expert Regional Economic Strategist and Policy Analyst.
+                Your task is to analyze the following regional data payload and generate a highly comprehensive, in-depth strategic intelligence report (approx. 800 - 1500 words).
 
-    TASK & ARCHITECTURE:
-    Execute a comprehensive analysis. If the Data Confidence Index is below 100%, you MUST activate the "Transparent Interpolation" protocol. Output STRICTLY in professional HTML format.
+                [CRITICAL RULES - READ CAREFULLY]
+                1. DETECT THE LANGUAGE used in the "Vision_Statement" and "SWOT_Analysis" inside the payload. You MUST write the ENTIRE response (including translating the HTML headings) in THAT exact language.
+                2. DO NOT output meta-text or placeholders (e.g., NEVER say "This section would provide..."). You MUST generate the actual analysis based on the numbers and text provided. 
+                3. If some data is 0, empty, or "Belum ada", analyze what that absence or "0" means for the region's readiness. Do not complain that the data is missing; interpret the blank space intelligently.
+                4. Output STRICTLY as raw HTML (using <div>, <h4>, <p>, <ul>, <li>). Do not use markdown backticks.
 
-    OUTPUT STRUCTURE:
+                [DATA PAYLOAD]
+                ${JSON.stringify(dataPayload, null, 2)}
 
-    <div class="mb-4">
-        <h4 class="font-bold text-navy-800 text-sm border-b pb-1 mb-2">1. Systemic Caution & Data Awareness</h4>
-        <p class="text-xs text-slate-700 mb-2">State the Data Confidence Index (${dataConfidence}%).</p>
-        
-        <div class="bg-slate-100 border-l-4 border-slate-500 p-3 my-2 rounded-r text-xs text-slate-700">
-            <strong>Data Interpolation Protocol:</strong> 
-            (If data is missing, identify what is blank. Then, explicitly state your proxy assumptions. 
-            Example: "Climate risk data is absent. However, given the heavy reliance on the 'Agriculture' sector, baseline climate vulnerability is temporarily interpolated as High/Severe. These estimates are directional.")
-        </div>
+                [REQUIRED HTML OUTPUT STRUCTURE]
+                (Translate the headings below to match the detected language of the payload. Fill the content deeply and comprehensively based on the data).
 
-        <h4 class="font-bold text-navy-800 text-sm border-b pb-1 mb-2 mt-4">2. Executive Intelligence Brief</h4>
-        <p class="text-xs text-slate-700 mb-2">(Max 150-word synthesis connecting vision, sectors, and interpolated reality).</p>
+                <div class="space-y-6">
+                    <h4 class="font-bold text-navy-800 text-lg border-b pb-2 mb-3">1. Executive Intelligence Brief</h4>
+                    <p class="text-sm text-slate-700 leading-relaxed mb-4">
+                        (Write 3 to 4 dense, highly analytical paragraphs here. Synthesize the Vision, the SWOT realities, and the chosen sectors. How realistic is the vision given the financial gaps and institutional capacity?)
+                    </p>
 
-        <h4 class="font-bold text-navy-800 text-sm border-b pb-1 mb-2 mt-4">3. Systemic Risk Scanner (Stress Test)</h4>
-        <ul class="list-disc pl-4 text-xs text-slate-700 space-y-1">
-            <li><strong>Implementation Risk Level:</strong> (Assess based on Ambition vs. Institutional Capacity).</li>
-            <li><strong>Structural Tension Alert:</strong> (Identify mismatches using both hard data and interpolated assumptions).</li>
-        </ul>
+                    <h4 class="font-bold text-navy-800 text-lg border-b pb-2 mb-3">2. Systemic Risk Scanner & Stress Test</h4>
+                    <ul class="list-disc pl-5 text-sm text-slate-700 space-y-3 mb-4">
+                        <li><strong>Implementation Risk:</strong> (Analyze the Institutional Capacity metrics versus the Action Plan and Funding Needed. Are they capable of executing this? Assess as Low, Medium, or High and explain why in detail).</li>
+                        <li><strong>Structural Tensions:</strong> (Identify deep mismatches. Example: Are they targeting high exports but have terrible climate vulnerability? Is the funding gap too wide compared to private investment readiness?)</li>
+                        <li><strong>Social & Environmental Safeguards:</strong> (Analyze the Equity and Environmental data. Will this strategy worsen the Gini ratio? Is the carbon/water risk a threat to the sectors?)</li>
+                    </ul>
 
-        <h4 class="font-bold text-navy-800 text-sm border-b pb-1 mb-2 mt-4">4. Advisory Framing Model</h4>
-        <ul class="list-disc pl-4 text-xs text-slate-700 space-y-1">
-            <li><strong>Observation:</strong> (State a factual systemic observation).</li>
-            <li><strong>Risk Interpretation:</strong> (What does this systemic interaction mean?).</li>
-            <li><strong>Strategic Suggestion:</strong> (Provide a phased, actionable recommendation).</li>
-        </ul>
-    </div>
-    
-    CRITICAL LANGUAGE RULE: Output the ENTIRE HTML response in the exact same language as the 'Vision' and 'SWOT' inputs.
-    `;
+                    <h4 class="font-bold text-navy-800 text-lg border-b pb-2 mb-3">3. Strategic Advisory & Recommendations</h4>
+                    <ul class="list-disc pl-5 text-sm text-slate-700 space-y-3">
+                        <li><strong>Observation:</strong> (State a major factual finding from the data interactions).</li>
+                        <li><strong>Implication:</strong> (What happens to the region if this trajectory continues without intervention?)</li>
+                        <li><strong>Actionable Suggestion:</strong> (Provide concrete, phased advice to policymakers to mitigate risks or leverage the opportunities identified).</li>
+                    </ul>
+                </div>
+                `;
 
-    try {
-        const res = await AI_BRIDGE.generate(prompt, apiKey);
-        // Memastikan tidak ada sisa markdown dari respon LLM
-        const cleanHTML = res.replace(/```html|```/g, '').trim();
-        setAiAnalysis(cleanHTML);
-    } catch (e) { 
-        alert("S3 Engine Error: " + e.message); 
-    } 
-    finally { setAiLoading(false); }
-}
+                try {
+                    const res = await AI_BRIDGE.generate(prompt, apiKey);
+                    const cleanHTML = res.replace(/```html|```/g, '').trim();
+                    setAiAnalysis(cleanHTML);
+                } catch (e) { 
+                    alert("AI Error: " + e.message); 
+                } 
+                finally { setAiLoading(false); }
+            }
 
 
 
